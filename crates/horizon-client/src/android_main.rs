@@ -39,6 +39,8 @@ mod document_provider;
 mod document_store;
 #[path = "android/documents.rs"]
 mod documents;
+#[path = "android/world_transfer.rs"]
+mod world_transfer;
 #[path = "android/exit_reports.rs"]
 mod exit_reports;
 #[path = "android/gallery.rs"]

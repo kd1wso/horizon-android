@@ -33,6 +33,8 @@ enum Command {
     Capture(bool),
     Bounds,
     ImportDocument,
+    ImportWorld,
+    CreateDocument(String),
     Screen(bool, bool),
 }
 struct Ui {
@@ -326,7 +328,7 @@ impl Ui {
                 }
                 self.enqueue(Command::Bounds);
             }
-            Command::ImportDocument => {
+            cmd @ (Command::ImportDocument | Command::ImportWorld) => {
                 let result = (|| -> jni::errors::Result<()> {
                     let action =
                         JObject::from(env.new_string("android.intent.action.OPEN_DOCUMENT")?);
@@ -343,7 +345,7 @@ impl Ui {
                         "(Ljava/lang/String;)Landroid/content/Intent;",
                         &[JValue::Object(&category)],
                     )?;
-                    let mime = JObject::from(env.new_string("*/*")?);
+                    let mime = JObject::from(env.new_string(if matches!(cmd, Command::ImportWorld) { "application/zip" } else { "*/*" })?);
                     env.call_method(
                         &intent,
                         "setType",
@@ -360,7 +362,7 @@ impl Ui {
                         &self.activity,
                         "startActivityForResult",
                         "(Landroid/content/Intent;I)V",
-                        &[JValue::Object(&intent), JValue::Int(4101)],
+                        &[JValue::Object(&intent), JValue::Int(if matches!(cmd, Command::ImportWorld) { crate::world_transfer::IMPORT_REQUEST } else { 4101 })],
                     )?;
                     Ok(())
                 })();
@@ -369,6 +371,23 @@ impl Ui {
                     log::warn!("Document picker: {error}");
                     crate::documents::picker_failed("No Android document picker is available");
                 }
+            }
+            Command::CreateDocument(title) => {
+                let result = (|| -> jni::errors::Result<()> {
+                    let action = JObject::from(env.new_string("android.intent.action.CREATE_DOCUMENT")?);
+                    let intent = env.new_object("android/content/Intent", "(Ljava/lang/String;)V", &[JValue::Object(&action)])?;
+                    let category = JObject::from(env.new_string("android.intent.category.OPENABLE")?);
+                    env.call_method(&intent, "addCategory", "(Ljava/lang/String;)Landroid/content/Intent;", &[JValue::Object(&category)])?;
+                    let mime = JObject::from(env.new_string("application/zip")?);
+                    env.call_method(&intent, "setType", "(Ljava/lang/String;)Landroid/content/Intent;", &[JValue::Object(&mime)])?;
+                    let title_key = JObject::from(env.new_string("android.intent.extra.TITLE")?);
+                    let title_value = JObject::from(env.new_string(title)?);
+                    env.call_method(&intent, "putExtra", "(Ljava/lang/String;Ljava/lang/String;)Landroid/content/Intent;", &[JValue::Object(&title_key), JValue::Object(&title_value)])?;
+                    env.call_method(&intent, "addFlags", "(I)Landroid/content/Intent;", &[JValue::Int(3)])?;
+                    env.call_method(&self.activity, "startActivityForResult", "(Landroid/content/Intent;I)V", &[JValue::Object(&intent), JValue::Int(4102)])?;
+                    Ok(())
+                })();
+                if let Err(error) = result { let _ = env.exception_clear(); log::warn!("Create document picker: {error}"); crate::world_transfer::picker_failed("No Android save picker is available"); }
             }
             Command::Show(text) => {
                 let s = JObject::from(env.new_string(&text)?);
@@ -710,10 +729,21 @@ pub fn pick_document() -> bool {
     ui.enqueue(Command::ImportDocument);
     true
 }
+pub fn pick_world_document() -> bool {
+    let Some(ui) = UI.get().filter(|ui| !ui.failed.load(Ordering::Acquire)) else { return false; };
+    ui.enqueue(Command::ImportWorld);
+    true
+}
 
 pub fn configure_screen(immersive: bool, avoid_cutout: bool) {
     if let Some(ui) = UI.get() {
         ui.enqueue(Command::Screen(immersive, avoid_cutout));
+pub fn create_document(title: &str) -> bool {
+    let Some(ui) = UI.get().filter(|ui| !ui.failed.load(Ordering::Acquire)) else { return false; };
+    ui.enqueue(Command::CreateDocument(title.to_owned()));
+    true
+}
+
     }
 }
 pub fn refresh_bounds() {

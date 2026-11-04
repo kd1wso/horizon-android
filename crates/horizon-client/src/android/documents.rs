@@ -71,6 +71,9 @@ pub fn conflict() -> bool {
         .conflict
         .is_some()
 }
+pub fn set_notice(text: String, changed: bool) {
+    notice(text, changed);
+}
 fn notice(text: impl Into<String>, changed: bool) {
     let text = text.into();
     let mut s = STATE.lock().unwrap_or_else(|e| e.into_inner());

@@ -150,15 +150,17 @@ pub enum Page {
     Packs,
     Shaders,
     Installed,
+    Worlds,
     Settings,
 }
 impl Page {
-    pub const ALL: [Self; 6] = [
+    pub const ALL: [Self; 7] = [
         Self::Play,
         Self::Mods,
         Self::Packs,
         Self::Shaders,
         Self::Installed,
+        Self::Worlds,
         Self::Settings,
     ];
     pub fn name(self) -> &'static str {
@@ -168,6 +170,7 @@ impl Page {
             Self::Packs => "Packs",
             Self::Shaders => "Shaders",
             Self::Installed => "Installed",
+            Self::Worlds => "Worlds",
             Self::Settings => "Settings",
         }
     }
