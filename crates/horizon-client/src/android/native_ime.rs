@@ -738,14 +738,15 @@ pub fn pick_world_document() -> bool {
 pub fn configure_screen(immersive: bool, avoid_cutout: bool) {
     if let Some(ui) = UI.get() {
         ui.enqueue(Command::Screen(immersive, avoid_cutout));
+    }
+}
+
 pub fn create_document(title: &str) -> bool {
     let Some(ui) = UI.get().filter(|ui| !ui.failed.load(Ordering::Acquire)) else { return false; };
     ui.enqueue(Command::CreateDocument(title.to_owned()));
     true
 }
 
-    }
-}
 pub fn refresh_bounds() {
     if let Some(ui) = UI.get().filter(|ui| {
         ui.avoid_cutout.load(Ordering::Acquire) || !ui.immersive.load(Ordering::Acquire)

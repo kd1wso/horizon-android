@@ -20,6 +20,11 @@ fn notice(text: impl Into<String>, changed: bool) {
     crate::documents::set_notice(text.into(), changed);
 }
 pub fn busy() -> bool { BUSY.load(Ordering::Acquire) }
+pub fn picker_failed(error: &str) {
+    REQUEST.lock().unwrap_or_else(|e| e.into_inner()).take();
+    BUSY.store(false, Ordering::Release);
+    notice(error, false);
+}
 pub fn begin_import(home: PathBuf) -> Result<(), String> {
     begin(Request { home, cache: crate::platform::cache_dir().ok_or("Android cache unavailable")?.join("world-imports"), world: None })
 }
