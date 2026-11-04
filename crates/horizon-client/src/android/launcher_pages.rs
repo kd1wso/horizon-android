@@ -823,7 +823,14 @@ impl Launcher {
                 }
             }
         } else if page == Page::Worlds {
-            self.draw_worlds_page(&mut ui, w, h, compact);
+            Self::draw_worlds_page(
+                &mut ui,
+                w,
+                h,
+                compact,
+                &mut self.targets,
+                &self.catalog.config.game_home(&self.home),
+            );
         } else if page == Page::Settings {
             let c = &self.catalog.config;
             ui.text(
@@ -1242,8 +1249,14 @@ impl Launcher {
         }
         Ok(())
     }
-    fn draw_worlds_page(&mut self, ui: &mut Ui, w: f32, h: f32, compact: bool) {
-        let home = self.catalog.config.game_home(&self.home);
+    fn draw_worlds_page(
+        ui: &mut Ui,
+        w: f32,
+        h: f32,
+        compact: bool,
+        targets: &mut Vec<([f32; 4], Action)>,
+        home: &std::path::Path,
+    ) {
         let saves = home.join("saves");
         ui.text(Face::Medium, 24.0, 32.0, 142.0, color::TEXT, "Worlds");
         ui.text(
@@ -1257,7 +1270,7 @@ impl Launcher {
         let button_width = ((w - 80.0) / 2.0).min(180.0);
         button(
             ui,
-            &mut self.targets,
+            targets,
             [32.0, 204.0, button_width, 42.0],
             "Import",
             Action::ImportWorld,
@@ -1265,7 +1278,7 @@ impl Launcher {
         );
         button(
             ui,
-            &mut self.targets,
+            targets,
             [40.0 + button_width, 204.0, button_width, 42.0],
             "Open folder",
             Action::WorldFiles,
@@ -1308,7 +1321,7 @@ impl Launcher {
         for (i, name) in worlds.iter().enumerate() {
             let y = top + i as f32 * row_height - self.catalog.scroll;
             let rect = [32.0, y, w - 64.0, row_height - 8.0];
-            self.list_targets.push((rect, Action::ExportWorld(i)));
+            targets.push((rect, Action::ExportWorld(i)));
             if y < top - row_height || y > bottom {
                 continue;
             }
@@ -1316,7 +1329,7 @@ impl Launcher {
             ui.text(Face::Medium, 17.0, 48.0, y + 10.0, color::TEXT, name);
             button(
                 ui,
-                &mut self.targets,
+                targets,
                 [w - 160.0, y + 8.0, 112.0, 38.0],
                 "Export",
                 Action::ExportWorld(i),
