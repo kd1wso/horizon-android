@@ -1369,7 +1369,7 @@ impl Launcher {
                 (*x..*x + *w).contains(&p[0]) && (*y..*y + *h).contains(&p[1])
             })
             .map(|(_, a)| *a);
-        if self.catalog.busy() || crate::documents::busy() {
+        if self.catalog.busy() || crate::documents::busy() || crate::world_transfer::busy() {
             return Ok(());
         }
         self.feedback = action.map(|action| (action, std::time::Instant::now()));

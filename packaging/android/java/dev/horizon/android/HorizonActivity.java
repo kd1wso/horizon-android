@@ -7,7 +7,8 @@ public final class HorizonActivity extends android.app.NativeActivity {
 
     @Override protected void onActivityResult(int request, int result, android.content.Intent data) {
         super.onActivityResult(request, result, data);
-        if (request != 4101) return;
+        // 4101: content import, 4102: world export, 4103: world import.
+        if (request != 4101 && request != 4102 && request != 4103) return;
         nativeDocumentResult(request, result,
                 data == null || data.getData() == null ? null : data.getData().toString());
     }

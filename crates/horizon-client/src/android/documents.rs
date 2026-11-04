@@ -140,7 +140,9 @@ pub extern "system" fn document_result(
     result: i32,
     uri: JString<'_>,
 ) {
-    if request == crate::world_transfer::IMPORT_REQUEST {
+    if request == crate::world_transfer::IMPORT_REQUEST
+        || request == crate::world_transfer::EXPORT_REQUEST
+    {
         crate::world_transfer::result(env, activity, request, result, uri);
         return;
     }

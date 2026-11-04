@@ -369,7 +369,11 @@ impl Ui {
                 if let Err(error) = result {
                     let _ = env.exception_clear();
                     log::warn!("Document picker: {error}");
-                    crate::documents::picker_failed("No Android document picker is available");
+                    if matches!(cmd, Command::ImportWorld) {
+                        crate::world_transfer::picker_failed("No Android document picker is available");
+                    } else {
+                        crate::documents::picker_failed("No Android document picker is available");
+                    }
                 }
             }
             Command::CreateDocument(title) => {
@@ -384,7 +388,7 @@ impl Ui {
                     let title_value = JObject::from(env.new_string(title)?);
                     env.call_method(&intent, "putExtra", "(Ljava/lang/String;Ljava/lang/String;)Landroid/content/Intent;", &[JValue::Object(&title_key), JValue::Object(&title_value)])?;
                     env.call_method(&intent, "addFlags", "(I)Landroid/content/Intent;", &[JValue::Int(3)])?;
-                    env.call_method(&self.activity, "startActivityForResult", "(Landroid/content/Intent;I)V", &[JValue::Object(&intent), JValue::Int(4102)])?;
+                    env.call_method(&self.activity, "startActivityForResult", "(Landroid/content/Intent;I)V", &[JValue::Object(&intent), JValue::Int(crate::world_transfer::EXPORT_REQUEST)])?;
                     Ok(())
                 })();
                 if let Err(error) = result { let _ = env.exception_clear(); log::warn!("Create document picker: {error}"); crate::world_transfer::picker_failed("No Android save picker is available"); }
