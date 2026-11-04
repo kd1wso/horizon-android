@@ -829,6 +829,9 @@ impl Launcher {
                 h,
                 compact,
                 &mut self.targets,
+                &mut self.list_targets,
+                &mut self.catalog.scroll,
+                &mut self.list_view,
                 &self.catalog.config.game_home(&self.home),
             );
         } else if page == Page::Settings {
@@ -1249,12 +1252,16 @@ impl Launcher {
         }
         Ok(())
     }
+    #[allow(clippy::too_many_arguments)]
     fn draw_worlds_page(
         ui: &mut Ui,
         w: f32,
         h: f32,
         compact: bool,
         targets: &mut Vec<([f32; 4], Action)>,
+        list_targets: &mut Vec<([f32; 4], Action)>,
+        scroll: &mut f32,
+        list_view: &mut Option<[f32; 3]>,
         home: &std::path::Path,
     ) {
         let saves = home.join("saves");
@@ -1299,11 +1306,11 @@ impl Launcher {
         let top = 270.0;
         let bottom = h - 74.0;
         let row_height = if compact { 74.0 } else { 62.0 };
-        self.catalog.scroll = self.catalog.scroll.clamp(
+        *scroll = scroll.clamp(
             0.0,
             (worlds.len() as f32 * row_height - (bottom - top)).max(0.0),
         );
-        self.list_view = Some([
+        *list_view = Some([
             top,
             bottom,
             (worlds.len() as f32 * row_height - (bottom - top)).max(0.0),
@@ -1319,9 +1326,9 @@ impl Launcher {
             );
         }
         for (i, name) in worlds.iter().enumerate() {
-            let y = top + i as f32 * row_height - self.catalog.scroll;
+            let y = top + i as f32 * row_height - *scroll;
             let rect = [32.0, y, w - 64.0, row_height - 8.0];
-            targets.push((rect, Action::ExportWorld(i)));
+            list_targets.push((rect, Action::ExportWorld(i)));
             if y < top - row_height || y > bottom {
                 continue;
             }
