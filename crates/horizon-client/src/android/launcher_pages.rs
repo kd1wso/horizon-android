@@ -59,6 +59,8 @@ pub(super) enum Action {
     ChooseCacheBudget(u32),
     ToggleBundled(&'static str),
     WorldFiles,
+    ImportWorld,
+    ExportWorld(usize),
     GameFiles,
     WorkerLimit,
     ChooseWorkerLimit(u32),
@@ -820,7 +822,9 @@ impl Launcher {
                     );
                 }
             }
-        } else {
+        } else if page == Page::Worlds {
+            self.draw_worlds_page(&mut ui, w, h, compact);
+        } else if page == Page::Settings {
             let c = &self.catalog.config;
             ui.text(
                 Face::Medium,
@@ -1238,10 +1242,94 @@ impl Launcher {
         }
         Ok(())
     }
+    fn draw_worlds_page(&mut self, ui: &mut Ui, w: f32, h: f32, compact: bool) {
+        let home = self.catalog.config.game_home(&self.home);
+        let saves = home.join("saves");
+        ui.text(Face::Medium, 24.0, 32.0, 142.0, color::TEXT, "Worlds");
+        ui.text(
+            Face::Regular,
+            14.0,
+            32.0,
+            178.0,
+            color::MUTED,
+            "Worlds stored in saves/",
+        );
+        let button_width = ((w - 80.0) / 2.0).min(180.0);
+        button(
+            ui,
+            &mut self.targets,
+            [32.0, 204.0, button_width, 42.0],
+            "Import",
+            Action::ImportWorld,
+            true,
+        );
+        button(
+            ui,
+            &mut self.targets,
+            [40.0 + button_width, 204.0, button_width, 42.0],
+            "Open folder",
+            Action::WorldFiles,
+            false,
+        );
+        let mut worlds: Vec<String> = std::fs::read_dir(&saves)
+            .ok()
+            .into_iter()
+            .flatten()
+            .filter_map(|entry| {
+                let entry = entry.ok()?;
+                let path = entry.path();
+                (path.is_dir() && path.join("level.dat").is_file())
+                    .then(|| entry.file_name().to_string_lossy().into_owned())
+            })
+            .collect();
+        worlds.sort_by_key(|name| name.to_lowercase());
+        let top = 270.0;
+        let bottom = h - 74.0;
+        let row_height = if compact { 74.0 } else { 62.0 };
+        self.catalog.scroll = self.catalog.scroll.clamp(
+            0.0,
+            (worlds.len() as f32 * row_height - (bottom - top)).max(0.0),
+        );
+        self.list_view = Some([
+            top,
+            bottom,
+            (worlds.len() as f32 * row_height - (bottom - top)).max(0.0),
+        ]);
+        if worlds.is_empty() {
+            ui.text(
+                Face::Regular,
+                16.0,
+                32.0,
+                top,
+                color::MUTED,
+                "No worlds found in saves/",
+            );
+        }
+        for (i, name) in worlds.iter().enumerate() {
+            let y = top + i as f32 * row_height - self.catalog.scroll;
+            let rect = [32.0, y, w - 64.0, row_height - 8.0];
+            self.list_targets.push((rect, Action::ExportWorld(i)));
+            if y < top - row_height || y > bottom {
+                continue;
+            }
+            ui.rounded(rect[0], rect[1], rect[2], rect[3], 4.0, color::RAISED);
+            ui.text(Face::Medium, 17.0, 48.0, y + 10.0, color::TEXT, name);
+            button(
+                ui,
+                &mut self.targets,
+                [w - 160.0, y + 8.0, 112.0, 38.0],
+                "Export",
+                Action::ExportWorld(i),
+                false,
+            );
+        }
+    }
+
     pub(super) fn activate(&mut self, events: &ActiveEventLoop) -> Result<()> {
         if self.session_worker.is_some() && self.chooser.is_none() && !self.exit_confirmation {
             return Ok(());
         }
+
         let Some(r) = &self.renderer else {
             return Ok(());
         };
@@ -1341,9 +1429,41 @@ impl Launcher {
             Some(Action::WorldFiles) => {
                 let id = crate::document_store::folder_id(self.catalog.config.profile, "worlds");
                 self.catalog.status = if crate::platform::open_documents(&id) {
-                    "Copy a complete world folder to back up or import. Finish copying before Play; never replace an existing world silently."
-                } else { "Open system Files > Horizon Android > Worlds. Copy complete world folders while the game is closed." }.into();
+                    "World folder opened."
+                } else {
+                    "Open system Files > Horizon Android > Worlds."
+                }
+                .into();
             }
+            Some(Action::ImportWorld) => {
+                if let Err(error) =
+                    crate::world_transfer::begin_import(self.catalog.config.game_home(&self.home))
+                {
+                    self.catalog.status = error;
+                }
+            }
+            Some(Action::ExportWorld(index)) => {
+                let home = self.catalog.config.game_home(&self.home);
+                let saves = home.join("saves");
+                let mut worlds: Vec<String> = std::fs::read_dir(&saves)
+                    .ok()
+                    .into_iter()
+                    .flatten()
+                    .filter_map(|entry| {
+                        let entry = entry.ok()?;
+                        let path = entry.path();
+                        (path.is_dir() && path.join("level.dat").is_file())
+                            .then(|| entry.file_name().to_string_lossy().into_owned())
+                    })
+                    .collect();
+                worlds.sort_by_key(|name| name.to_lowercase());
+                if let Some(world) = worlds.get(index) {
+                    if let Err(error) = crate::world_transfer::begin_export(home, world.clone()) {
+                        self.catalog.status = error;
+                    }
+                }
+            }
+
             Some(Action::WorkerLimit) => self.open_chooser(chooser::Kind::WorkerLimit),
             Some(Action::ChooseWorkerLimit(limit)) => {
                 self.catalog.config.worker_limit = limit.min(64);
