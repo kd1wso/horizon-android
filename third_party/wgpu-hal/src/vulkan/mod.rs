@@ -1664,6 +1664,27 @@ fn map_pipeline_err(err: vk::Result) -> crate::DeviceError {
     map_host_device_oom_err(err)
 }
 
+/// Maps the error of a `vkCreateGraphicsPipelines` or `vkCreateComputePipelines` call.
+///
+/// A driver that can't compile a pipeline may answer with a code of its own (Adreno 740 does
+/// for some shader pack programs), which [`map_pipeline_err`] makes
+/// [`crate::DeviceError::Unexpected`], and wgpu-core loses the device for it, with
+/// everything on it. Only a lost device or no memory is the device's: any other code is this
+/// pipeline's failure, a validation error for the caller.
+fn map_pipeline_creation_err(err: vk::Result, stages: wgt::ShaderStages) -> crate::PipelineError {
+    match err {
+        vk::Result::ERROR_DEVICE_LOST
+        | vk::Result::ERROR_OUT_OF_HOST_MEMORY
+        | vk::Result::ERROR_OUT_OF_DEVICE_MEMORY => {
+            crate::PipelineError::Device(map_host_device_oom_and_lost_err(err))
+        }
+        err => crate::PipelineError::Linkage(
+            stages,
+            format!("the Vulkan driver did not create the pipeline ({err:?})"),
+        ),
+    }
+}
+
 /// Returns [`crate::DeviceError::Unexpected`] or panics if the `internal_error_panic`
 /// feature flag is enabled.
 fn get_unexpected_err(_err: vk::Result) -> crate::DeviceError {

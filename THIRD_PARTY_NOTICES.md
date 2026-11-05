@@ -5,8 +5,10 @@
 `third_party/wgpu-hal` is [wgpu-hal](https://github.com/gfx-rs/wgpu) 30.0.1 by the gfx-rs
 developers, with upstream fixes applied
 ([gfx-rs/wgpu#10124](https://github.com/gfx-rs/wgpu/pull/10124),
-[gfx-rs/wgpu#10714](https://github.com/gfx-rs/wgpu/pull/10714)). It is licensed under MIT or
-Apache-2.0; both licenses are in that folder (`LICENSE.MIT`, `LICENSE.APACHE`).
+[gfx-rs/wgpu#10714](https://github.com/gfx-rs/wgpu/pull/10714)), and one local change: a Vulkan
+pipeline or shader module the driver refuses with an error code of its own fails alone instead of
+losing the device. It is licensed under MIT or Apache-2.0; both licenses are in that folder
+(`LICENSE.MIT`, `LICENSE.APACHE`).
 
 ## naga
 

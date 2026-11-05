@@ -73,6 +73,9 @@ large_enum_variant = "allow"
 # And gfx-rs/wgpu#10714: on Windows, Vulkan waits for the acquire fence only in
 # FIFO (VSync), where it was meant to pace frames; with VSync off it made every
 # frame wait for the GPU to finish the one before (#4604).
+# Local change: a Vulkan pipeline or shader module the driver refuses with a code
+# of its own (Adreno 740 does for some programs of Lux 1.2) is that pipeline's
+# error, not a lost device with everything on it (map_pipeline_creation_err).
 # Drop this and the folder once a wgpu release has these fixes.
 [patch.crates-io]
 winit = { path = "third_party/winit" }

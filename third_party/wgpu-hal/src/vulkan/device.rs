@@ -782,7 +782,16 @@ impl super::Device {
                     naga::back::spv::write_vec(&module, &info, options, Some(&pipeline_options))
                 }
                 .map_err(|e| crate::PipelineError::Linkage(stage_flags, format!("{e}")))?;
-                self.create_shader_module_impl(&spv, &None)?
+                // A module the driver refuses with an unexpected code is this stage's failure,
+                // not a lost device (`map_pipeline_creation_err`).
+                self.create_shader_module_impl(&spv, &None)
+                    .map_err(|e| match e {
+                        crate::DeviceError::Unexpected => crate::PipelineError::Linkage(
+                            stage_flags,
+                            "the Vulkan driver did not create the shader module".into(),
+                        ),
+                        e => e.into(),
+                    })?
             }
         };
 
@@ -2166,14 +2175,34 @@ impl crate::Device for super::Device {
             .map(|it| it.raw)
             .unwrap_or(vk::PipelineCache::null());
 
-        let mut raw_vec = {
+        let created = {
             profiling::scope!("vkCreateGraphicsPipelines");
             unsafe {
                 self.shared
                     .raw
                     .create_graphics_pipelines(pipeline_cache, &vk_infos, None)
-                    .map_err(|(_, e)| super::map_pipeline_err(e))
-            }?
+            }
+        };
+        let mut raw_vec = match created {
+            Ok(raw_vec) => raw_vec,
+            Err((_, e)) => {
+                let compiled = [
+                    (&compiled_vs, wgt::ShaderStages::VERTEX),
+                    (&compiled_ts, wgt::ShaderStages::TASK),
+                    (&compiled_ms, wgt::ShaderStages::MESH),
+                    (&compiled_fs, wgt::ShaderStages::FRAGMENT),
+                ];
+                let mut stage_flags = wgt::ShaderStages::empty();
+                for (stage, flag) in compiled {
+                    if let Some(stage) = stage {
+                        stage_flags |= flag;
+                        if let Some(raw_module) = stage.temp_raw_module {
+                            unsafe { self.shared.raw.destroy_shader_module(raw_module, None) };
+                        }
+                    }
+                }
+                return Err(super::map_pipeline_creation_err(e, stage_flags));
+            }
         };
 
         let raw = raw_vec.pop().unwrap();
@@ -2249,14 +2278,25 @@ impl crate::Device for super::Device {
             .map(|it| it.raw)
             .unwrap_or(vk::PipelineCache::null());
 
-        let mut raw_vec = {
+        let created = {
             profiling::scope!("vkCreateComputePipelines");
             unsafe {
                 self.shared
                     .raw
                     .create_compute_pipelines(pipeline_cache, &vk_infos, None)
-                    .map_err(|(_, e)| super::map_pipeline_err(e))
-            }?
+            }
+        };
+        let mut raw_vec = match created {
+            Ok(raw_vec) => raw_vec,
+            Err((_, e)) => {
+                if let Some(raw_module) = compiled.temp_raw_module {
+                    unsafe { self.shared.raw.destroy_shader_module(raw_module, None) };
+                }
+                return Err(super::map_pipeline_creation_err(
+                    e,
+                    wgt::ShaderStages::COMPUTE,
+                ));
+            }
         };
 
         let raw = raw_vec.pop().unwrap();
