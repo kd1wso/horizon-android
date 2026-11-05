@@ -17,6 +17,9 @@ ASSETS = {'assets/engine-data.zip', 'assets/bedrock-controls.zip'}
 # AndroidX build-time optimization profiles, not player/account profiles.
 BUILD_ASSETS = {'assets/dexopt/baseline.prof', 'assets/dexopt/baseline.profm'}
 LICENSE_ASSETS = {'assets/LICENSE.txt', 'assets/THIRD_PARTY_NOTICES.md'}
+# Built-in shader packs (tools/android_shader_packs.py): third-party shader code, one ZIP each,
+# scanned like the rest of the payload.
+SHADER_PACK = re.compile(r'assets/shaderpacks/[^/]+\.zip')
 PRIVATE_PARTS = {'accounts', 'accounts.json', 'session.json', 'session-file.json',
                  'control.json', 'servers.dat', 'level.dat', 'options.txt',
                  'android-launch.json', 'android-launcher.json', 'saves', 'profiles',
@@ -34,6 +37,7 @@ PATTERNS = {
 
 def inspect_payload(path, public=False):
     findings = []
+    shader_packs = []
     totals = {'entries': 0, 'uncompressed_bytes': 0}
 
     def walk(archive, prefix='', depth=0):
@@ -59,7 +63,10 @@ def inspect_payload(path, public=False):
             if any(part.lower() in PRIVATE_PARTS for part in parts) or PurePosixPath(name).suffix.lower() in PRIVATE_SUFFIXES:
                 findings.append({'path': full, 'kind': 'private_file'})
             if depth == 0 and name.startswith('assets/') and name not in ASSETS | BUILD_ASSETS | LICENSE_ASSETS:
-                findings.append({'path': full, 'kind': 'unexpected_asset'})
+                if SHADER_PACK.fullmatch(name):
+                    shader_packs.append(name)
+                else:
+                    findings.append({'path': full, 'kind': 'unexpected_asset'})
             data = archive.read(entry)
             for kind, pattern in PATTERNS.items():
                 if pattern.search(data):
@@ -80,7 +87,7 @@ def inspect_payload(path, public=False):
         if public and 'assets/bedrock-controls.zip' in archive.namelist():
             raise ValueError('Public APK must download original control textures, not bundle them')
         walk(archive)
-    return {**totals, 'findings': findings}
+    return {**totals, 'shader_packs': sorted(shader_packs), 'findings': findings}
 
 
 def audit(path, aapt2, public=False, app_id='dev.horizon.android'):
@@ -96,6 +103,7 @@ def audit(path, aapt2, public=False, app_id='dev.horizon.android'):
     report['passed'] = not report['findings']
     report['payload_mode'] = 'generated-tables-and-official-downloads' if public else 'private-development'
     report['bundled_game_resources'] = ['assets/engine-data.zip (generated tables)'] if public else sorted(ASSETS)
+    report['bundled_shader_packs'] = report.pop('shader_packs', [])
     report['distribution_clearance'] = 'Technical payload audit; no legal certification.'
     report['scope'] = 'Archive paths, packaged assets, known credential patterns, personal compiler paths and manifest debuggability; no exhaustive secret-format guarantee.'
     return report

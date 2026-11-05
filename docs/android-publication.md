@@ -25,7 +25,9 @@ artifacts: they may contain private resource bundles and enable debugging.
 ### Payload
 
 The public APK includes the Rust engine, licensed application dependencies and
-allowlisted generated Horizon tables. Original Minecraft resource files, JARs,
+allowlisted generated Horizon tables, plus the shader packs from
+`shaders/android-native/` as `assets/shaderpacks/*.zip` (third-party shader code under
+its own licence, see `THIRD_PARTY_NOTICES.md`). Original Minecraft resource files, JARs,
 textures and sounds are not packaged as game resources. The installer downloads
 them from Mojang, checks pinned hashes and reconstructs required world data on
 the device. Touch textures and their license come from a pinned revision of

@@ -71,6 +71,26 @@ class ReleaseAuditTests(unittest.TestCase):
     def test_androidx_build_profiles_are_allowed(self):
         self.assertEqual(self.inspect(extra={'assets/dexopt/baseline.prof': b'compiled profile'})['findings'], [])
 
+    def test_built_in_shader_packs_are_allowed_and_scanned(self):
+        pack = archive({'shaders/final.fsh': b'void main() {}'})
+        report = self.inspect(extra={'assets/shaderpacks/Lux.zip': pack})
+        self.assertEqual(report['findings'], [])
+        self.assertEqual(report['shader_packs'], ['assets/shaderpacks/Lux.zip'])
+        for name in ['assets/shaderpacks/Lux/shaders/final.fsh', 'assets/shaderpacks/notes.txt']:
+            self.assertEqual([f['kind'] for f in self.inspect(extra={name: b'x'})['findings']], ['unexpected_asset'])
+        leaked = archive({'shaders/final.fsh': b'ghp_' + b'X' * 36})
+        report = self.inspect(extra={'assets/shaderpacks/Lux.zip': leaked})
+        self.assertEqual({f['kind'] for f in report['findings']}, {'github_token'})
+        with tempfile.TemporaryDirectory() as temporary:
+            apk = Path(temporary) / 'test.apk'
+            apk.write_bytes(b'test')
+            payload = {'findings': [], 'shader_packs': ['assets/shaderpacks/Lux.zip']}
+            with patch.object(audit, 'inspect_payload', return_value=payload), patch.object(
+                    audit.subprocess, 'check_output', return_value="package: name='dev.horizon.android'\n"):
+                report = audit.audit(apk, 'aapt2')
+        self.assertTrue(report['passed'])
+        self.assertEqual(report['bundled_shader_packs'], ['assets/shaderpacks/Lux.zip'])
+
     def test_nested_player_data_and_unexpected_asset_are_rejected(self):
         report = self.inspect({'profiles/account.json': b'{}'}, {'assets/settings.json': b'{}'})
         self.assertEqual({f['kind'] for f in report['findings']}, {'private_file', 'unexpected_asset'})
