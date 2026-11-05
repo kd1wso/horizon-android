@@ -2,7 +2,7 @@
 Implementations for `BlockContext` methods.
 */
 
-use alloc::vec::Vec;
+use alloc::{vec, vec::Vec};
 
 use arrayvec::ArrayVec;
 use spirv::Word;
@@ -1556,29 +1556,7 @@ impl BlockContext<'_> {
                         arg1_id,
                     )),
                     Mf::Cross => MathOp::Ext(spirv::GlslStd450Op::Cross),
-                    // Of scalars, `abs(a - b)`: Adreno 740's compiler (E031.41) creates no
-                    // pipeline for Lux 1.2's sky, and a scalar `Distance` is what it has that
-                    // none of the pack's programs the driver compiles has.
-                    Mf::Distance => match *arg_ty {
-                        crate::TypeInner::Scalar(_) => {
-                            let difference_id = self.gen_id();
-                            block.body.push(Instruction::binary(
-                                spirv::Op::FSub,
-                                result_type_id,
-                                difference_id,
-                                arg0_id,
-                                arg1_id,
-                            ));
-                            MathOp::Custom(Instruction::ext_inst_gl_op(
-                                self.writer.gl450_ext_inst_id,
-                                spirv::GlslStd450Op::FAbs,
-                                result_type_id,
-                                id,
-                                &[difference_id],
-                            ))
-                        }
-                        _ => MathOp::Ext(spirv::GlslStd450Op::Distance),
-                    },
+                    Mf::Distance => MathOp::Ext(spirv::GlslStd450Op::Distance),
                     Mf::Length => MathOp::Ext(spirv::GlslStd450Op::Length),
                     Mf::Normalize => MathOp::Ext(spirv::GlslStd450Op::Normalize),
                     Mf::FaceForward => MathOp::Ext(spirv::GlslStd450Op::FaceForward),
@@ -1631,6 +1609,53 @@ impl BlockContext<'_> {
                         }
                     }
                     Mf::Step => MathOp::Ext(spirv::GlslStd450Op::Step),
+                    // Constant edges the other way round (`smoothstep(0.04, 0.01, x)`, a curve
+                    // falling from 1 to 0) as `1 - smoothstep(0.01, 0.04, x)`, the same values:
+                    // GLSL.std.450 leaves `edge0 >= edge1` undefined, and the Vulkan driver of an
+                    // Adreno 740 (E031.41) creates no pipeline for Lux 1.2's sky, whose shooting
+                    // stars have the one such smoothstep of the pack.
+                    Mf::SmoothStep
+                        if arg1.is_some_and(|edge1| {
+                            let floats = |e| {
+                                literal_floats(self.ir_module, &self.ir_function.expressions, e)
+                            };
+                            match (floats(arg), floats(edge1)) {
+                                (Some(e0), Some(e1)) => {
+                                    e0.len() == e1.len() && e0.iter().zip(&e1).all(|(a, b)| a > b)
+                                }
+                                _ => false,
+                            }
+                        }) =>
+                    {
+                        let (size, scalar) = match *arg_ty {
+                            crate::TypeInner::Vector { size, scalar } => (Some(size), scalar),
+                            crate::TypeInner::Scalar(scalar) => (None, scalar),
+                            ref other => unimplemented!("Unexpected smoothstep({:?})", other),
+                        };
+                        let mut one_id = self.writer.get_constant_scalar_with(1, scalar)?;
+                        if let Some(size) = size {
+                            let ty =
+                                LocalType::Numeric(NumericType::Vector { size, scalar }).into();
+                            self.temp_list.clear();
+                            self.temp_list.resize(size as _, one_id);
+                            one_id = self.writer.get_constant_composite(ty, &self.temp_list);
+                        }
+                        let rising_id = self.gen_id();
+                        block.body.push(Instruction::ext_inst_gl_op(
+                            self.writer.gl450_ext_inst_id,
+                            spirv::GlslStd450Op::SmoothStep,
+                            result_type_id,
+                            rising_id,
+                            &[arg1_id, arg0_id, arg2_id],
+                        ));
+                        MathOp::Custom(Instruction::binary(
+                            spirv::Op::FSub,
+                            result_type_id,
+                            id,
+                            one_id,
+                            rising_id,
+                        ))
+                    }
                     Mf::SmoothStep => MathOp::Ext(spirv::GlslStd450Op::SmoothStep),
                     Mf::Sqrt => MathOp::Ext(spirv::GlslStd450Op::Sqrt),
                     Mf::InverseSqrt => MathOp::Ext(spirv::GlslStd450Op::InverseSqrt),
@@ -4259,5 +4284,34 @@ impl BlockContext<'_> {
         )?;
 
         Ok(())
+    }
+}
+
+/// The components of `expr` in `arena` if it is a float literal or a vector of them (a splat, a
+/// composition, a module constant), as `f64`s.
+fn literal_floats(
+    module: &crate::Module,
+    arena: &crate::Arena<crate::Expression>,
+    expr: Handle<crate::Expression>,
+) -> Option<Vec<f64>> {
+    match arena[expr] {
+        crate::Expression::Literal(crate::Literal::F16(v)) => Some(vec![v.to_f64()]),
+        crate::Expression::Literal(crate::Literal::F32(v)) => Some(vec![v.into()]),
+        crate::Expression::Literal(crate::Literal::F64(v)) => Some(vec![v]),
+        crate::Expression::Splat { size, value } => match *literal_floats(module, arena, value)? {
+            [v] => Some(vec![v; size as usize]),
+            _ => None,
+        },
+        crate::Expression::Compose { ref components, .. } => {
+            let mut values = Vec::new();
+            for &c in components {
+                values.extend(literal_floats(module, arena, c)?);
+            }
+            Some(values)
+        }
+        crate::Expression::Constant(c) => {
+            literal_floats(module, &module.global_expressions, module.constants[c].init)
+        }
+        _ => None,
     }
 }

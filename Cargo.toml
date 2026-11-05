@@ -80,8 +80,9 @@ large_enum_variant = "allow"
 [patch.crates-io]
 winit = { path = "third_party/winit" }
 wgpu-hal = { path = "third_party/wgpu-hal" }
-# naga 30.0.1, with the fixes to its GLSL frontend that shader packs need, and a scalar
-# `distance` written to SPIR-V as `abs(a - b)` (THIRD_PARTY_NOTICES.md).
+# naga 30.0.1, with the fixes to its GLSL frontend that shader packs need, and a smoothstep
+# with constant edges the other way round written to SPIR-V as one minus the rising one
+# (THIRD_PARTY_NOTICES.md).
 naga = { path = "third_party/naga" }
 
 # Line tables keep file:line in backtraces; full debug info made every

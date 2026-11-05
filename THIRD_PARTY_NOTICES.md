@@ -14,10 +14,11 @@ losing the device. It is licensed under MIT or Apache-2.0; both licenses are in 
 
 `third_party/naga` is [naga](https://github.com/gfx-rs/wgpu) 30.0.1 by the gfx-rs developers, with
 fixes to its GLSL frontend that shader packs need, each applied in the commit that needed it. Its
-SPIR-V backend writes a `distance` of two scalars as `abs(a - b)` (the same value): the one program
-of the Lux pack the Vulkan driver of an Adreno 740 refused is the only one with such a `distance`.
-It is licensed under MIT or Apache-2.0; both licenses are in that folder (`LICENSE.MIT`,
-`LICENSE.APACHE`).
+SPIR-V backend writes a smoothstep with constant edges the other way round, which GLSL.std.450
+leaves undefined, as one minus the rising one (`smoothstep(0.04, 0.01, x)` as
+`1 - smoothstep(0.01, 0.04, x)`, the same values): the Vulkan driver of an Adreno 740 creates no
+pipeline for the one program of the Lux pack with such a smoothstep. It is licensed under MIT or
+Apache-2.0; both licenses are in that folder (`LICENSE.MIT`, `LICENSE.APACHE`).
 
 ## Pixelify Sans
 

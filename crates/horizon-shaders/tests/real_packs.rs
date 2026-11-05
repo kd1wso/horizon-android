@@ -457,8 +457,8 @@ fn backends(post: &horizon_shaders::Post, dimension: &str) {
 }
 
 /// `EMPTIED=1`: every module with any one function left empty, as `narrow_down` tries a program
-/// a GPU driver refuses, validates; and a driver refusing a scalar `distance` (what Lux's sky has
-/// that none of its programs Adreno 740 compiles has) is narrowed down to the function using it.
+/// a GPU driver refuses, validates; and a driver refusing a smoothstep with constant edges the
+/// other way round (Lux's sky has the pack's one) is narrowed down to the function with it.
 fn emptied(modules: &[(String, &naga::Module)], programs: &[(&str, &naga::Module, &naga::Module)]) {
     let validate = |m: &naga::Module| {
         naga::valid::Validator::new(
@@ -486,29 +486,32 @@ fn emptied(modules: &[(String, &naga::Module)], programs: &[(&str, &naga::Module
         invalid, 0,
         "a module with a function left empty does not validate"
     );
-    // Whether `m` writes a `distance` of two scalars (one in an expression nothing uses is not
-    // written: compacting removes it, as emptying any function does).
-    let scalar_distance = |m: &naga::Module| {
+    // Whether `m` has a smoothstep with literal edges the other way round (one in an expression
+    // nothing uses is not written: compacting removes it, as emptying any function does).
+    let falling_smoothstep = |m: &naga::Module| {
         let mut m = m.clone();
         naga::compact::compact(&mut m, naga::compact::KeepUnused::No);
-        let m = &m;
-        let info = validate(m).expect("validates");
-        let functions = m.functions.iter().map(|(h, f)| (f, &info[h]));
-        let entries = (m.entry_points.iter().enumerate())
-            .map(|(i, e)| (&e.function, info.get_entry_point(i)));
-        functions.chain(entries).any(|(f, fi)| {
+        let literal = |f: &naga::Function, e: naga::Handle<naga::Expression>| match f.expressions[e]
+        {
+            naga::Expression::Literal(naga::Literal::F32(v)) => Some(v),
+            _ => None,
+        };
+        let functions = m.functions.iter().map(|(_, f)| f);
+        let entries = m.entry_points.iter().map(|e| &e.function);
+        functions.chain(entries).any(|f| {
             f.expressions.iter().any(|(_, e)| match *e {
                 naga::Expression::Math {
-                    fun: naga::MathFunction::Distance,
+                    fun: naga::MathFunction::SmoothStep,
                     arg,
+                    arg1: Some(edge1),
                     ..
-                } => matches!(*fi[arg].ty.inner_with(&m.types), naga::TypeInner::Scalar(_)),
+                } => matches!((literal(f, arg), literal(f, edge1)), (Some(a), Some(b)) if a > b),
                 _ => false,
             })
         })
     };
     for &(name, vertex, fragment) in programs {
-        if !scalar_distance(vertex) && !scalar_distance(fragment) {
+        if !falling_smoothstep(vertex) && !falling_smoothstep(fragment) {
             continue;
         }
         let start = Instant::now();
@@ -516,10 +519,10 @@ fn emptied(modules: &[(String, &naga::Module)], programs: &[(&str, &naga::Module
             vertex,
             fragment,
             |tried| tried < 24,
-            |v, f| !scalar_distance(&v) && !scalar_distance(&f),
+            |v, f| !falling_smoothstep(&v) && !falling_smoothstep(&f),
         );
         println!(
-            "    {name}, a driver refusing scalar distance: {note}, {:.2} s",
+            "    {name}, a driver refusing a falling smoothstep: {note}, {:.2} s",
             start.elapsed().as_secs_f64()
         );
     }
