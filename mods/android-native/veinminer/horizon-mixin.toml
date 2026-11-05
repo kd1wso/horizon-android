@@ -1,0 +1,101 @@
+# VeinMiner: an Android native mod, built into the APK (docs/android-native-mods.md).
+# Sneak and break an ore or a log with the right tool: the connected blocks of the same
+# kind break with it.
+[mod]
+id = "veinminer"
+version = "1.0.0"
+priority = 100
+
+# runtime.rs becomes crate::game::android_veinminer: the mod's code.
+[[module]]
+id = "runtime"
+file = "crates/horizon-client/src/game.rs"
+name = "android_veinminer"
+source = "runtime.rs"
+
+# The break: the rest of the vein breaks first, as the player's own breaks. Low
+# priority, so another mod that cancels the break runs first and keeps the vein too.
+[[injection]]
+id = "destroy"
+kind = "HEAD"
+hook = "destroy_block"
+hook_version = 1
+priority = 10
+helper = "destroy.rs"
+bindings = [
+  { name = "game", ty = "&mut crate::game::Game<'_>", value = "&mut *self" },
+  { name = "pos", ty = "[i32; 3]", value = "pos" },
+  { name = "canceled", ty = "&bool", value = "&*canceled" },
+]
+
+# Its row in Options > Mods (where it is turned on and off).
+[[injection]]
+id = "list"
+kind = "HEAD"
+hook = "mods"
+hook_version = 1
+helper = "list.rs"
+bindings = [
+  { name = "mods", ty = "&mut Vec<crate::game::native_hooks::NativeMod>", value = "&mut *mods" },
+]
+
+# Its settings page: mode, the most blocks, ores, logs, the HUD hint.
+[[injection]]
+id = "settings"
+kind = "HEAD"
+hook = "settings"
+hook_version = 1
+helper = "settings.rs"
+bindings = [
+  { name = "game", ty = "&mut crate::game::Game<'_>", value = "&mut *self" },
+  { name = "mod_id", ty = "&str", value = "mod_id" },
+  { name = "buttons", ty = "&mut Vec<String>", value = "&mut *buttons" },
+]
+
+[[injection]]
+id = "click"
+kind = "HEAD"
+hook = "settings_click"
+hook_version = 1
+helper = "click.rs"
+bindings = [
+  { name = "game", ty = "&mut crate::game::Game<'_>", value = "&mut *self" },
+  { name = "mod_id", ty = "&str", value = "mod_id" },
+  { name = "button", ty = "usize", value = "button" },
+]
+
+# "VeinMiner" on the HUD while it is armed (sneaking with a pickaxe or an axe).
+[[injection]]
+id = "hud"
+kind = "HEAD"
+hook = "hud"
+hook_version = 1
+helper = "hud.rs"
+bindings = [
+  { name = "game", ty = "&mut crate::game::Game<'_>", value = "&mut *self" },
+  { name = "batch", ty = "&mut horizon_client::hud::HudBatch", value = "&mut *batch" },
+  { name = "corners", ty = "&mut horizon_client::extras_hud::Corners", value = "&mut *corners" },
+]
+
+# /veinminer in chat: what it does with the current settings.
+[[injection]]
+id = "commands"
+kind = "HEAD"
+hook = "commands"
+hook_version = 1
+helper = "commands.rs"
+bindings = [
+  { name = "commands", ty = "&mut Vec<&'static str>", value = "&mut *commands" },
+]
+
+[[injection]]
+id = "command"
+kind = "HEAD"
+hook = "command"
+hook_version = 1
+helper = "command.rs"
+bindings = [
+  { name = "game", ty = "&mut crate::game::Game<'_>", value = "&mut *self" },
+  { name = "command", ty = "&str", value = "command" },
+  { name = "ran", ty = "&mut bool", value = "&mut *ran" },
+]
