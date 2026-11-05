@@ -159,6 +159,17 @@ git push                                          # CI соберёт APK вме
 **Shader Options… → Profile → Medium** или **High**: это настройки оригинала. Все изменения —
 в [ANDROID.txt](shaders/android-native/Lux_v1.2_Horizon_Android/ANDROID.txt).
 
+> [!WARNING]
+> **Телефоны с Adreno (Snapdragon).** Vulkan-драйвер Qualcomm собирает не все шейдеры Lux: на
+> Adreno 740 (Snapdragon 8 Gen 2, например Xiaomi 13, драйвер от 28.11.2025) он отказывается
+> компилировать одну из программ пака, хотя её код проходит проверку SPIR-V. Это ошибка компилятора
+> в драйвере, а не в Lux или игре. Раньше из-за неё игра теряла графическое устройство и выкидывала
+> в лаунчер (в логе — `the graphics device was lost`). Теперь игра пропускает такую программу:
+> Lux включается, но часть эффектов может пропасть. Какая программа не собралась, видно в отчёте
+> **Settings → Diagnostic report** по строке `the Vulkan driver did not create the pipeline`.
+> Режим **Settings → Rendering → Vulkan / GPU batching** на Adreno 740 терял устройство и без
+> шейдеров, поэтому пока оставь **Vulkan / compatibility** (он стоит по умолчанию).
+
 Вшить можно и свой шейдерпак: положи его папку (с `shaders/` внутри) или `.zip` в
 `shaders/android-native/`, и следующий APK принесёт его. Проверка —
 `python3 tools/android_shader_packs.py check`, подробности — в
