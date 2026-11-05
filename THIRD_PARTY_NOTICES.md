@@ -84,3 +84,14 @@ copyright 2026 d3grando, MIT. Exact revisions and adaptation notes are recorded 
 module retains its full MIT LICENSE. Changes provide static Android hook
 adapters, opt-in configuration, profile-state reset and compatibility guards.
 These are a fixed compiled set, not support for loading arbitrary native mods.
+
+## Lux shader pack
+
+`shaders/android-native/Lux_v1.2_Horizon_Android` is Lux v1.2 by
+[TechDevOnGithub](https://github.com/TechDevOnGithub/), based on BSL Shaders v7.1.05 by Capt Tatsu
+([bitslablab.com](https://bitslablab.com)), in GBanan's build for Horizon
+([GBanan/Lux-1.2-Shaders-For-Horizon](https://github.com/GBanan/Lux-1.2-Shaders-For-Horizon)), with
+defaults changed for phones (its `ANDROID.txt`). It is not under this repository's MIT licence: it is
+distributed under the GNU General Public License 2.0 (`LICENSE` in that folder) and BSL's terms
+(`AGREEMENT.txt`). The APK carries it, with those files, as
+`assets/shaderpacks/Lux_v1.2_Horizon_Android.zip`.

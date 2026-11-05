@@ -38,6 +38,9 @@ Vulkan, сенсорное управление, миры в ZIP и нативн
 
 ## ✨ Что нового в форке
 
+- 🌅 **Шейдеры Lux 1.2 прямо в APK.** Сборка Lux для Horizon от [**@GBanan**](https://github.com/GBanan),
+  настроенная для телефонов, сама появляется в `shaderpacks/`: включи её на вкладке **Installed**
+  или в игре. [Подробнее](#-шейдеры-lux).
 - 🌍 **Миры в ZIP.** Новая страница **Worlds** в лаунчере: список миров из `saves/`,
   **Import** — импорт мира из ZIP, **Export** — экспорт в `<мир>.zip`,
   **Open folder** — папка миров в «Файлах» (Horizon Android → Worlds).
@@ -143,6 +146,28 @@ git push                                          # CI соберёт APK вме
 - **Вкл/выкл** — включён по умолчанию; выключается на вкладке **Mods** лаунчера или в **Options → Mods**.
 - **Настройки** — **Options → Mods → VeinMiner**, команда `/veinminer` в чате.
 
+## 🌅 Шейдеры Lux
+
+В APK встроен шейдерпак **Lux v1.2** в сборке для Horizon от [**@GBanan**](https://github.com/GBanan):
+[GBanan/Lux-1.2-Shaders-For-Horizon](https://github.com/GBanan/Lux-1.2-Shaders-For-Horizon). Лаунчер сам кладёт его в `shaderpacks/`
+профиля: включи **Lux_v1.2_Horizon_Android.zip (built in)** на вкладке **Installed** или в игре
+(**Options → Horizon Settings → Shader Packs**).
+
+Для телефонов изменены только настройки по умолчанию (профиль **Android**): тени 1024 на 128 блоков
+с простым фильтром, FXAA вместо TAA, без AO, объёмного света, размытых отражений и параллакса воды.
+Отражения в воде, цветные мягкие тени, облака, сияние и блум остались. На мощном телефоне выбери
+**Shader Options… → Profile → Medium** или **High**: это настройки оригинала. Все изменения —
+в [ANDROID.txt](shaders/android-native/Lux_v1.2_Horizon_Android/ANDROID.txt).
+
+Вшить можно и свой шейдерпак: положи его папку (с `shaders/` внутри) или `.zip` в
+`shaders/android-native/`, и следующий APK принесёт его. Проверка —
+`python3 tools/android_shader_packs.py check`, подробности — в
+[shaders/android-native/README.md](shaders/android-native/README.md).
+
+Lux сделал [TechDevOnGithub](https://github.com/TechDevOnGithub) на основе BSL Shaders от Capt Tatsu
+([bitslablab.com](https://bitslablab.com)), а для Horizon его перенёс и исправил [@GBanan](https://github.com/GBanan).
+Спасибо, [@GBanan](https://github.com/GBanan), за порт и разрешение переносить его дальше!
+
 ## 🛠️ Сборка
 
 - APK из исходников (Rust, Android SDK/NDK) — [docs/android.md → Build](docs/android.md#build-developers-only).
@@ -154,15 +179,19 @@ git push                                          # CI соберёт APK вме
 
 <table>
   <tr>
-    <td align="center" width="33%">
+    <td align="center" width="25%">
       <a href="https://github.com/Vasysik"><img src="https://github.com/Vasysik.png?size=160" width="88" alt="Vasysik"><br><b>Vasysik</b></a><br>
       <sub>Автор оригинального лаунчера и Android-порта<br><a href="https://github.com/Vasysik/horizon-android">Vasysik/horizon-android</a></sub>
     </td>
-    <td align="center" width="33%">
+    <td align="center" width="25%">
       <a href="https://github.com/ludovic111"><img src="https://github.com/ludovic111.png?size=160" width="88" alt="Ludovic Marie"><br><b>Ludovic Marie</b></a><br>
       <sub>Автор движка Horizon (вместе с контрибьюторами)<br><a href="https://github.com/horizon-rust/horizon">horizon-rust/horizon</a></sub>
     </td>
-    <td align="center" width="33%">
+    <td align="center" width="25%">
+      <a href="https://github.com/GBanan"><img src="https://github.com/GBanan.png?size=160" width="88" alt="GBanan"><br><b>@GBanan</b></a><br>
+      <sub>Шейдеры Lux 1.2 для Horizon<br><a href="https://github.com/GBanan/Lux-1.2-Shaders-For-Horizon">GBanan/Lux-1.2-Shaders-For-Horizon</a></sub>
+    </td>
+    <td align="center" width="25%">
       <a href="https://github.com/kd1wso"><img src="https://github.com/kd1wso.png?size=160" width="88" alt="kd1wso"><br><b>kd1wso</b></a><br>
       <sub>Этот форк: миры в ZIP,<br>нативные моды, VeinMiner</sub>
     </td>
@@ -174,11 +203,17 @@ git push                                          # CI соберёт APK вме
 [Vasysik/horizon-android](https://github.com/Vasysik/horizon-android).
 Поддержать автора: [Boosty](https://boosty.to/vasys) · сообщество в [Discord](https://discord.gg/PG79z2PhjG).
 
+Шейдеры Lux для Horizon перенёс **[@GBanan](https://github.com/GBanan)**: [GBanan/Lux-1.2-Shaders-For-Horizon](https://github.com/GBanan/Lux-1.2-Shaders-For-Horizon).
+
 ## 📄 Лицензия
 
 Код распространяется по лицензии **MIT** — см. [LICENSE](LICENSE). Копирайт
 «Ludovic Marie and the Horizon contributors» сохранён, изменения форка распространяются на тех же условиях.
 Сторонние компоненты и их лицензии — в [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+Шейдерпак Lux в `shaders/android-native/` под MIT не подпадает: он распространяется по GPL-2.0
+([LICENSE](shaders/android-native/Lux_v1.2_Horizon_Android/LICENSE)) и на условиях BSL Shaders
+([AGREEMENT.txt](shaders/android-native/Lux_v1.2_Horizon_Android/AGREEMENT.txt)).
 
 Ресурсы Minecraft (текстуры, звуки) в репозиторий не входят и не подпадают под MIT: лаунчер
 скачивает их на устройстве с официальных серверов Mojang. Minecraft и его ресурсы принадлежат Mojang и Microsoft.

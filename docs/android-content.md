@@ -105,3 +105,21 @@ sky and adds two post-processing passes; it is a functional example, not an
 Android performance benchmark.
 
 The Horizon catalog also lists source-only `.hnmod` mods so their availability is visible. These require rebuilding the game and cannot be installed into the current Android client; the list marks them as unsupported. `.hmod` file and HTTPS imports remain available.
+
+## Built-in shader packs
+
+The APK carries the shader packs in `shaders/android-native/`: each folder there holding a
+`shaders/` folder goes in as `<folder>.zip`, each `.zip` as it is
+(`python3 tools/android_shader_packs.py check` lists them; `tools/android_build.py` writes
+them into the APK's `assets/shaderpacks/`). At start the app reads them, and the launcher
+puts each into the profile's `shaderpacks/` the first time it opens that profile, so Installed
+lists it, marked "built in", and the game's Shader Packs page too; it is enabled there like
+any other pack. A pack the player deletes stays deleted until an APK brings a new version of
+it, and a file of the same name the player put there is never replaced
+(`android-bundled-shaders.txt` in the profile records what was put there).
+
+The first is Lux v1.2, GBanan's build of Lux for Horizon
+([GBanan/Lux-1.2-Shaders-For-Horizon](https://github.com/GBanan/Lux-1.2-Shaders-For-Horizon)),
+with defaults for phones: 1024 shadows to 128 blocks with the simple filter, FXAA, and no AO,
+light shafts, rough reflections or water parallax; its Medium, High and Ultra profiles bring
+back the original's. What changed is in its `ANDROID.txt`.

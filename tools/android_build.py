@@ -138,6 +138,12 @@ def main():
         native_mods = None if args.skip_rust or args.no_native_mods else android_native_mods.load(ROOT)
     except android_native_mods.ModError as e:
         parser.exit(1, ''.join(f'android-native-mods: error: {line}\n' for line in str(e).splitlines()))
+    # Shader packs from shaders/android-native go into the APK's assets; a broken one fails here,
+    # before the long Cargo build.
+    import android_shader_packs
+    shader_problems = android_shader_packs.packs()[1]
+    if shader_problems:
+        parser.exit(1, ''.join(f'android-shader-packs: error: {line}\n' for line in shader_problems))
     suffix = '.exe' if os.name == 'nt' else ''
     for name, value in [('ndk-version', args.ndk_version), ('build-tools-version', args.build_tools_version)]:
         if value is not None and not re.fullmatch(r'\d+(?:\.\d+)+', value):
@@ -217,6 +223,8 @@ def main():
     shutil.copyfile(ROOT / 'LICENSE', assets / 'LICENSE.txt')
     shutil.copyfile(ROOT / 'THIRD_PARTY_NOTICES.md', assets / 'THIRD_PARTY_NOTICES.md')
     shutil.copyfile(engine_data(args.public), assets / 'engine-data.zip')
+    for pack in android_shader_packs.write(assets / 'shaderpacks'):
+        print(f'Built-in shader pack: {pack.name} ({pack.stat().st_size} bytes)')
     controls = ROOT / '.local/android/bedrock-controls.zip'
     if not args.public and not controls.is_file():
         import sys

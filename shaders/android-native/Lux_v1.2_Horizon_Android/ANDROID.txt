@@ -1,0 +1,34 @@
+Lux v1.2 для Horizon Android
+============================
+
+Сборка Lux v1.2 для Horizon от GBanan
+(https://github.com/GBanan/Lux-1.2-Shaders-For-Horizon), настроенная для телефонов.
+Встроена в APK форка Horizon Android (https://github.com/kd1wso/horizon-android-kd1wso):
+лаунчер сам кладёт её в shaderpacks/ профиля. Включается во вкладке Installed лаунчера
+или в игре: Options > Horizon Settings > Shader Packs.
+
+Что изменено для Android
+------------------------
+Только значения по умолчанию (lib/settings.glsl) и профили (shaders.properties,
+lang/en_US.lang). Сами шейдеры не тронуты, исправления GBanan из HORIZON.txt на месте.
+
+- Тени: карта 1024 вместо 2048, дальность 128 блоков вместо 256, простой фильтр
+  (Simple) вместо VPS. Цветные и мягкие тени остались.
+- Сглаживание FXAA вместо TAA: дешевле и не размазывает картинку при 30-40 FPS.
+- Выключены AO, объёмный свет и туман (VOLUMETRIC_FOG), размытые отражения
+  (REFLECTION_ROUGH) и параллакс воды (WATER_PARALLAX). Отражения в воде остались.
+- Северное сияние: 6 шагов вместо 8, в отражениях 4 вместо 6.
+- В списки добавлены тени 512 и 1536 и дальность 64, 96 и 192 блока, убраны 8192
+  и 1024 блока.
+- Новый профиль Android: эти настройки. Medium, High и Ultra возвращают то, что
+  было в Lux: TAA, фильтр VPS, размытые отражения и параллакс воды.
+
+Мощный телефон: Shader Options... > Profile > Medium или High.
+
+Авторы
+------
+Lux Shader: https://github.com/TechDevOnGithub/
+На основе BSL Shaders v7.1.05, Capt Tatsu, https://bitslablab.com
+Сборка для Horizon: GBanan, https://github.com/GBanan/Lux-1.2-Shaders-For-Horizon
+Настройки для Android: kd1wso, https://github.com/kd1wso/horizon-android-kd1wso
+Условия использования: AGREEMENT.txt и LICENSE.

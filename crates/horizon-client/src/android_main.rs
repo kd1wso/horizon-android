@@ -21,6 +21,8 @@ mod account;
 mod browser;
 #[path = "android/dns.rs"]
 mod android_dns;
+#[path = "android/bundled_shaders.rs"]
+mod bundled_shaders;
 #[path = "android/catalog.rs"]
 mod catalog;
 #[path = "android/device_preferences.rs"]
@@ -90,6 +92,33 @@ mod backend {
 }
 
 use std::cell::RefCell;
+/// The shader packs in the APK's `assets/shaderpacks/` (`shaders/android-native/`, written by
+/// tools/android_shader_packs.py).
+fn apk_shader_packs(
+    assets: &winit::platform::android::activity::ndk::asset::AssetManager,
+) -> Vec<bundled_shaders::Pack> {
+    use std::io::Read;
+    let Some(folder) = assets.open_dir(c"shaderpacks") else {
+        return Vec::new();
+    };
+    folder
+        .filter_map(|file| {
+            let name = file.to_str().ok()?.to_owned();
+            if !horizon_client::content_files::Kind::Shaders.accepts(&name)
+                || !horizon_client::content_files::plain_name(&name)
+            {
+                return None;
+            }
+            let path = std::ffi::CString::new(format!("shaderpacks/{name}")).ok()?;
+            let mut bytes = Vec::new();
+            if let Err(error) = assets.open(&path)?.read_to_end(&mut bytes) {
+                log::error!("Cannot read the built-in shader pack {name}: {error}");
+                return None;
+            }
+            Some(bundled_shaders::Pack { name, bytes })
+        })
+        .collect()
+}
 pub(crate) fn keyboard_mouse_input() -> bool {
     horizon_client::android_runtime::active_input() == catalog::InputHost::KeyboardMouse
 }
@@ -224,6 +253,7 @@ fn android_main(app: AndroidApp) {
         secure_store::initialize(vm);
     }
     let engine_data = app.asset_manager().open(c"engine-data.zip");
+    bundled_shaders::remember(apk_shader_packs(&app.asset_manager()));
     APP.with(|slot| *slot.borrow_mut() = Some(app));
     let Some(cache) = platform::cache_dir() else {
         log::error!("Android supplied no application cache directory");
