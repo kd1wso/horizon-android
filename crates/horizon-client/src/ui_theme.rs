@@ -86,9 +86,11 @@ pub enum Face {
     SemiBold,
     /// Counts, timestamps and the boot screen's console lines.
     Mono,
+    /// Pixelify Sans: the Android launcher's wordmark, titles and step numbers.
+    Pixel,
 }
 struct Fonts {
-    faces: [FontRef<'static>; 4],
+    faces: [FontRef<'static>; 5],
 }
 impl Fonts {
     fn load() -> Self {
@@ -99,6 +101,7 @@ impl Fonts {
                 f(horizon_theme::fonts::GEIST_MEDIUM),
                 f(horizon_theme::fonts::GEIST_SEMIBOLD),
                 f(horizon_theme::fonts::GEIST_MONO),
+                f(horizon_theme::fonts::PIXEL_BOLD),
             ],
         }
     }
@@ -439,6 +442,27 @@ impl<'a> Ui<'a> {
         self.raw_fill(x0, y0 + r, x0 + r, y1 - r, color);
         self.raw_fill(x1 - r, y0 + r, x1, y1 - r, color);
         self.corners(x0, y0, x1, y1, r, false, color);
+    }
+    /// A rectangle shaded from `top` to `bottom` down its height.
+    pub fn gradient(&mut self, x: f32, y: f32, w: f32, h: f32, top: u32, bottom: u32) {
+        if (top | bottom) >> 24 == 0 {
+            return;
+        }
+        let (x0, y0, x1, y1) = (
+            self.px_x(x),
+            self.px_y(y),
+            self.px_x(x + w),
+            self.px_y(y + h),
+        );
+        if x1 > x0 && y1 > y0 {
+            let s = self.scale;
+            self.batch.fill_gradient(
+                self.atlas,
+                (x0 / s, y0 / s, (x1 - x0) / s, (y1 - y0) / s),
+                top,
+                bottom,
+            );
+        }
     }
     /// A 1px rounded border.
     pub fn border(&mut self, x: f32, y: f32, w: f32, h: f32, radius: f32, color: u32) {

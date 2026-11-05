@@ -54,6 +54,13 @@ The installer displays the current stage: metadata checks, resource download,
 unpacking, world-data preparation, touch textures and finalization. Progress shows
 MiB or file counts where available. Retry retains previously verified downloads.
 
+The launcher is drawn in a night pixel style: a dark sky with stars and a castle
+in violet fog behind every page, the pixel wordmark beside a cube, violet tabs and
+buttons with corners cut in pixel steps, and the pages on dark translucent plates.
+**Play** sits beside **GitHub**, which opens this fork's repository
+([kd1wso/horizon-android-kd1wso](https://github.com/kd1wso/horizon-android-kd1wso));
+the other pages keep **GitHub** at the bottom right.
+
 ### Accounts
 
 Sign-in opens a browser Custom Tab. The device code is copied to the clipboard

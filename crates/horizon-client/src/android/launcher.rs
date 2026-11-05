@@ -9,6 +9,8 @@ mod gesture;
 mod login;
 #[path = "launcher_pages.rs"]
 mod pages;
+#[path = "launcher_style.rs"]
+mod style;
 use horizon_client::{
     Result,
     gfx::Renderer,
