@@ -932,6 +932,14 @@ pub(crate) struct NativeMod {
     pub(crate) keys: Vec<[String; 3]>,
 }
 
+/// The rows of the native mods built into the APK from mods/android-native
+/// that need no game to list themselves: `tools/android_native_mods.py`
+/// writes their `mods` injections here. `native_mods` runs it first, and the
+/// launcher's Mods page lists them too, before any game is running.
+pub(super) fn apk_native_mods(mods: &mut Vec<NativeMod>) {
+    let _ = mods;
+}
+
 /// An item the panel shows (`native_panel_items`): its id
 /// (`minecraft:diamond`), a count (1 draws none) and its components beyond
 /// the item's own, in vanilla's item syntax, or "".
@@ -1384,6 +1392,7 @@ impl Game<'_> {
     }
     /// Options > Mods lists the native mods: push yours.
     pub(super) fn native_mods(&mut self, mods: &mut Vec<NativeMod>) {
+        apk_native_mods(mods);
         super::android_bundled::native_mods(self, mods);
         let _ = mods;
     }

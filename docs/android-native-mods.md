@@ -18,8 +18,9 @@ for Cargo and takes them out again afterwards.
    (see [development APKs](android-dev-builds.md) for the one-time signing setup);
    **Android source checks** runs the check. Locally, any `android_build.py` build
    includes it.
-4. Install the APK. The mod has a row in **Options → Mods**, where it is turned on
-   and off.
+4. Install the APK. The mod is on the launcher's **Mods** page (Horizon source),
+   with **Enable** / **Disable**, and has a row in **Options → Mods**, where it is
+   turned on and off too and has its settings.
 
 A packed `.hnmod` (from the registry, a GitHub release, the desktop launcher, or the
 one imported on the phone into `horizon-native-mods/`) works as it is: put the file
@@ -66,7 +67,11 @@ the helpers; the module reaches the game through the hook points' helpers
 private to `crate::game`: functions that take it are `pub(super)`.
 
 A mod lists itself with the `mods` hook (`NativeMod`), and checks
-`native_on(<id>)` before it acts: that is its switch in **Options → Mods**.
+`native_on(<id>)` before it acts: that is its switch in **Options → Mods** and on
+the launcher's **Mods** page. The launcher has no game: it lists a mod whose `mods`
+injection is a `HEAD` bound only to `mods`, as the template's is (the build writes
+it into `native_hooks::apk_native_mods`, which `native_mods` runs first). A row that
+needs the game (bound to `&mut *self`) is in **Options → Mods** only.
 
 ## How a build applies them
 
@@ -75,7 +80,8 @@ A mod lists itself with the `mods` hook (`NativeMod`), and checks
 1. If an interrupted build left mods in the source, it restores the source.
 2. It checks every mod against this source.
 3. It writes them in: each injection becomes a block at the start of the target's
-   body (or the whole body for `OVERWRITE`) between `// >>> android-native-mods`
+   body (or the whole body for `OVERWRITE`; a `mods` row that needs no game goes in
+   `apk_native_mods`) between `// >>> android-native-mods`
    and `// <<< android-native-mods`; modules become `#[path]` declarations; data
    goes to `native-data/<id>/`, a `.hnmod`'s files to
    `.local/android-native-mods/bundles/<id>/`. The originals are kept in

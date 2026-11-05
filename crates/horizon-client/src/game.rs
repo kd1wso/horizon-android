@@ -21559,3 +21559,15 @@ fn write_level_for_role(
 pub(crate) fn android_reset_bundled_mods() {
     android_bundled::reset();
 }
+
+/// The native mods built into the APK from mods/android-native, as the
+/// launcher's Mods page lists them: id, title and description
+/// (`native_hooks::apk_native_mods`).
+#[cfg(target_os = "android")]
+pub(crate) fn android_apk_mods() -> Vec<(String, String, String)> {
+    let mut mods = Vec::new();
+    native_hooks::apk_native_mods(&mut mods);
+    mods.into_iter()
+        .map(|m| (m.id, m.title, m.description))
+        .collect()
+}

@@ -559,6 +559,7 @@ impl Launcher {
                 let query = self.catalog.query.to_lowercase();
                 horizon_client::mod_list::ANDROID_BUNDLED
                     .into_iter()
+                    .chain(crate::catalog::apk_mods().iter().copied())
                     .filter(|(id, title, _)| {
                         id.contains(&query) || title.to_lowercase().contains(&query)
                     })
@@ -576,6 +577,7 @@ impl Launcher {
                         && p.source == crate::browser::SourceId::Horizon
                         && horizon_client::mod_list::ANDROID_BUNDLED
                             .iter()
+                            .chain(crate::catalog::apk_mods())
                             .any(|(id, _, _)| *id == p.id))
                 })
                 .collect();
@@ -1425,7 +1427,10 @@ impl Launcher {
             Some(Action::ToggleBundled(id)) => {
                 let game = self.catalog.config.game_home(&self.home);
                 let mut list = horizon_client::mod_list::ModList::load(&game);
-                let enabled = list.enabled.contains(id) && !list.disabled.contains(id);
+                // The mods built from mods/android-native are on until turned off;
+                // the fixed bundled ones are opt-in.
+                let apk = crate::catalog::apk_mods().iter().any(|(m, _, _)| *m == id);
+                let enabled = !list.disabled.contains(id) && (apk || list.enabled.contains(id));
                 if enabled {
                     list.enabled.remove(id);
                     list.disabled.insert(id.into());
@@ -1437,7 +1442,8 @@ impl Launcher {
                 std::fs::write(game.join(horizon_client::mod_list::FILE), list.serialize())?;
                 self.catalog.refresh(&self.home);
                 self.catalog.status = format!(
-                    "Bundled {id} {}. Applies on Play; settings are in Options > Mods.",
+                    "{} {id} {}. Applies on Play; settings are in Options > Mods.",
+                    if apk { "Built-in" } else { "Bundled" },
                     if enabled { "disabled" } else { "enabled" }
                 );
             }

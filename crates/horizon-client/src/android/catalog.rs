@@ -10,6 +10,28 @@ pub fn source_only_mod(project: &Project) -> bool {
         && project.loaders.iter().any(|loader| loader == "hnmod")
 }
 
+/// The native mods built into this APK from mods/android-native (VeinMiner...):
+/// id, title and description. Unlike the fixed bundled ones they are on until
+/// turned off (`mod.<id>:false`).
+pub fn apk_mods() -> &'static [(&'static str, &'static str, &'static str)] {
+    static MODS: std::sync::OnceLock<Vec<(&'static str, &'static str, &'static str)>> =
+        std::sync::OnceLock::new();
+    MODS.get_or_init(|| {
+        crate::game::android_apk_mods()
+            .into_iter()
+            .filter(|(id, _, _)| {
+                !horizon_client::mod_list::ANDROID_BUNDLED
+                    .iter()
+                    .any(|(bundled, _, _)| bundled == id)
+            })
+            .map(|(id, title, description)| {
+                let keep = |text: String| -> &'static str { text.leak() };
+                (keep(id), keep(title), keep(description))
+            })
+            .collect()
+    })
+}
+
 /// Temporary dev registration published as Minecraft Nintendo Switch by PrismarineJS.
 /// Account tokens and client secrets are never bundled.
 pub const MICROSOFT_CLIENT_ID: &str = "00000000441cc96b";
@@ -262,6 +284,12 @@ impl Catalog {
             .collect();
         let on = horizon_client::mod_list::ModList::load(&game);
         self.bundled_enabled = on.enabled.difference(&on.disabled).cloned().collect();
+        self.bundled_enabled.extend(
+            apk_mods()
+                .iter()
+                .filter(|(id, _, _)| !on.disabled.contains(*id))
+                .map(|(id, _, _)| (*id).to_owned()),
+        );
         let settings = horizon_client::settings::Settings::load(&game.join("options.txt"));
         self.local.clear();
         for kind in horizon_client::content_files::Kind::ALL {

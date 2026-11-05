@@ -59,6 +59,22 @@ FILES = {
                 '    ::core::ops::ControlFlow::Continue(())\n}\n',
     'data/levels.txt': '1 2 3\n',
 }
+# A row of Options > Mods that needs no game.
+LIST = '''
+[mod]
+id = "demo"
+version = "1.0.0"
+
+[[injection]]
+id = "list"
+kind = "HEAD"
+hook = "mods"
+hook_version = 1
+helper = "list.rs"
+bindings = [{ name = "mods", ty = "&mut Vec<crate::game::native_hooks::NativeMod>", value = "&mut *mods" }]
+'''
+LIST_FILES = {'list.rs': 'fn list(mods: &mut Vec<crate::game::native_hooks::NativeMod>) {\n'
+                         '    mods.push(Default::default());\n}\n'}
 
 
 def write(folder, files):
@@ -118,6 +134,11 @@ class Workspace(unittest.TestCase):
         start = text.index(f'fn {name}(')
         return text[start:text.index('\n    pub(super) fn ', start)]
 
+    def launcher_list(self, text):
+        """apk_native_mods in `text`: the rows the launcher lists too."""
+        start = text.index('fn apk_native_mods(')
+        return text[start:text.index('\n/// ', start)]
+
 
 class CatalogTests(unittest.TestCase):
     def test_every_hook_of_the_catalog_is_a_function_of_this_source(self):
@@ -140,6 +161,9 @@ class CatalogTests(unittest.TestCase):
         self.assertEqual([m.id for m in plan.mods], ['example'])
         self.assertEqual(len(plan.mods[0].injections), 6)
         self.assertEqual(sorted(plan.edits), [GAME, HOOKS])
+        start = plan.edits[HOOKS].index('fn apk_native_mods(')
+        listed = plan.edits[HOOKS][start:plan.edits[HOOKS].index('\n/// ', start)]
+        self.assertIn('crate::game::android_example::row()', listed)
 
     def test_the_template_is_not_built(self):
         with tempfile.TemporaryDirectory() as folder:
@@ -242,6 +266,28 @@ bindings = [{ name = "steps", ty = "f32", value = "steps" }]
         body = self.function('native_wheel_event', (self.root / HOOKS).read_text(encoding='utf-8'))
         self.assertIn('{\nfn event(steps: f32) -> bool {\n    steps > 0.0\n}\nevent(steps)\n}\n', body)
         self.assertNotIn('let mut claimed', body)
+
+    def test_rows_that_need_no_game_are_listed_by_the_launcher_too(self):
+        self.mod(LIST, LIST_FILES)
+        native.apply(native.load(self.root))
+        hooks = (self.root / HOOKS).read_text(encoding='utf-8')
+        listed = self.launcher_list(hooks)
+        self.assertIn(f'{{\n{native.BEGIN}\n// mods/android-native/demo/list.rs: demo injection "list"\n', listed)
+        self.assertIn('list(&mut *mods)\n};', listed)
+        mods = self.function('native_mods', hooks)
+        self.assertNotIn(native.BEGIN, mods)
+        self.assertLess(mods.index('apk_native_mods(mods);'), mods.index('android_bundled::native_mods'))
+        self.assertTrue(native.clean(self.root))
+        self.assertEqual((self.root / HOOKS).read_bytes(), self.original(HOOKS))
+
+        # A row that needs the game stays in native_mods: the launcher has no game to ask.
+        game = '{ name = "game", ty = "&mut crate::game::Game<\'_>", value = "&mut *self" },\n  '
+        self.mod(LIST.replace('bindings = [', 'bindings = [\n  ' + game),
+                 {'list.rs': LIST_FILES['list.rs'].replace('fn list(', "fn list(game: &mut crate::game::Game<'_>, ")})
+        native.apply(native.load(self.root))
+        hooks = (self.root / HOOKS).read_text(encoding='utf-8')
+        self.assertNotIn(native.BEGIN, self.launcher_list(hooks))
+        self.assertIn('list(&mut *self, &mut *mods)\n};', self.function('native_mods', hooks))
 
     def test_hnmod_bundles_are_built_from_their_own_copy(self):
         hnmod(self.mods / 'demo.hnmod')

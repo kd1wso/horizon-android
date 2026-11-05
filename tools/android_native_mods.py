@@ -33,6 +33,8 @@ TEMPLATE = 'mods/android-native/_example'
 WORK = '.local/android-native-mods'
 DATA = 'native-data'
 HOOKS_FILE = 'crates/horizon-client/src/game/native_hooks.rs'
+# Where the rows of Options > Mods that need no game go, so that the launcher lists them too.
+LAUNCHER_LIST = 'horizon_client::game::native_hooks::apk_native_mods'
 BUNDLED = 'crates/horizon-client/src/game/android_bundled'
 BEGIN = '// >>> android-native-mods (tools/android_native_mods.py; `clean` restores the original)'
 END = '// <<< android-native-mods'
@@ -931,6 +933,7 @@ def load(root=ROOT, folder=None):
             if check_contract(injection, f'{mod.label}/{injection.helper_path}', errors):
                 key = (injection.file, injection.function.open)
                 targets.setdefault(key, []).append(injection)
+    listed(root, hooks, packages, source, targets, errors)
     edits = {}
     for (name, _), injections in targets.items():
         function = injections[0].function
@@ -975,6 +978,37 @@ def load(root=ROOT, folder=None):
             text = text[:start] + insert + text[end:]
         results[name] = text
     return Plan(root, mods, results, {name: texts[name] for name in results})
+
+
+def listed(root, hooks, packages, source, targets, errors):
+    """Move the `mods` rows that need no game into apk_native_mods (LAUNCHER_LIST).
+
+    A HEAD on the `mods` hook whose bindings are all `mods` only pushes the mod's row:
+    native_mods runs apk_native_mods first, so Options > Mods lists it as before, and the
+    launcher's Mods page, which has no game, lists it too, with its switch."""
+    target = hooks.get(('mods', 1))
+    if not any(name == HOOKS_FILE for name, _ in targets):
+        return
+    found = resolve(root, target, packages, source, 'hook "mods"', []) if target else None
+    key = (found[0], found[1].open) if found else None
+    injections = targets.get(key, [])
+    if any(i.kind == 'OVERWRITE' for i in injections):
+        return
+    rows = [i for i in injections if not i.cancellable and i.bindings
+            and all(value_name(b['value']) == 'mods' for b in i.bindings)]
+    if not rows:
+        return
+    found = resolve(root, LAUNCHER_LIST, packages, source, f'{HOOKS_FILE} (the launcher\'s list)', errors)
+    if found is None:
+        return
+    for injection in rows:
+        injection.target = LAUNCHER_LIST
+        injection.file, injection.function = found
+        injections.remove(injection)
+        if check_contract(injection, f'{injection.mod.label}/{injection.helper_path}', errors):
+            targets.setdefault((found[0], found[1].open), []).append(injection)
+    if not injections:
+        del targets[key]
 
 
 def resolve(root, target, packages, source, here, errors):

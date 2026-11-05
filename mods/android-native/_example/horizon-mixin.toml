@@ -12,7 +12,8 @@ file = "crates/horizon-client/src/game.rs"
 name = "android_example"
 source = "runtime.rs"
 
-# Its row in Options > Mods (where it is turned on and off).
+# Its row in Options > Mods and on the launcher's Mods page (where it is turned on and
+# off). Bound only to `mods`, it needs no game, so the launcher can list it too.
 [[injection]]
 id = "list"
 kind = "HEAD"
