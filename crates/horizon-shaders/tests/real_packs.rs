@@ -200,7 +200,7 @@ fn real_packs_read() {
             }
             let post = load_post(&pack, &folder, &shaders, &macros, &inputs);
             if std::env::var_os("BACKENDS").is_some() {
-                backends(&post);
+                backends(&post, &id.to_string());
             }
             for p in post.programs.iter().chain(&post.shadow_comp) {
                 if std::env::var("PRINT_PROGRAM").is_ok_and(|n| n == p.name)
@@ -272,7 +272,7 @@ fn real_packs_read() {
 
 /// Every module of `post` through the shader writers wgpu uses (SPIR-V for Vulkan, HLSL for
 /// DirectX 12, GLSL for OpenGL, MSL for Metal), printing each error and panic (`BACKENDS=1`).
-fn backends(post: &horizon_shaders::Post) {
+fn backends(post: &horizon_shaders::Post, dimension: &str) {
     let optional = [
         &post.terrain,
         &post.water,
@@ -291,6 +291,7 @@ fn backends(post: &horizon_shaders::Post) {
         &post.shadow_block,
     ];
     let mut modules: Vec<(String, &naga::Module)> = Vec::new();
+    let mut programs: Vec<(&str, &naga::Module, &naga::Module)> = Vec::new();
     for p in post
         .programs
         .iter()
@@ -300,6 +301,7 @@ fn backends(post: &horizon_shaders::Post) {
         if let Some(program) = &p.program {
             modules.push((format!("{} vertex", p.name), &program.vertex));
             modules.push((format!("{} fragment", p.name), &program.fragment));
+            programs.push((&p.name, &program.vertex, &program.fragment));
         }
         for (name, c) in &p.compute {
             modules.push((name.clone(), &c.module));
@@ -321,25 +323,54 @@ fn backends(post: &horizon_shaders::Post) {
         let writers: [(&str, &dyn Fn() -> Result<(), String>); 4] = [
             ("spv", &|| {
                 use naga::back::spv;
+                // SPV_OUT=<folder>: also written there, as wgpu writes it for a Vulkan 1.3
+                // Adreno (SPIR-V 1.6, no varying names, robust access in the driver), for
+                // spirv-val.
+                let out = std::env::var_os("SPV_OUT");
                 let options = spv::Options {
-                    lang_version: (1, 3),
-                    flags: spv::WriterFlags::LABEL_VARYINGS | spv::WriterFlags::FORCE_POINT_SIZE,
+                    lang_version: if out.is_some() { (1, 6) } else { (1, 3) },
+                    flags: if out.is_some() {
+                        spv::WriterFlags::FORCE_POINT_SIZE
+                    } else {
+                        spv::WriterFlags::LABEL_VARYINGS | spv::WriterFlags::FORCE_POINT_SIZE
+                    },
                     bounds_check_policies: naga::proc::BoundsCheckPolicies {
                         index: naga::proc::BoundsCheckPolicy::Restrict,
-                        buffer: naga::proc::BoundsCheckPolicy::Restrict,
-                        image_load: naga::proc::BoundsCheckPolicy::Restrict,
+                        buffer: if out.is_some() {
+                            naga::proc::BoundsCheckPolicy::Unchecked
+                        } else {
+                            naga::proc::BoundsCheckPolicy::Restrict
+                        },
+                        image_load: if out.is_some() {
+                            naga::proc::BoundsCheckPolicy::Unchecked
+                        } else {
+                            naga::proc::BoundsCheckPolicy::Restrict
+                        },
                         binding_array: naga::proc::BoundsCheckPolicy::Unchecked,
                     },
                     force_loop_bounding: true,
+                    emit_int_div_checks: true,
                     ..Default::default()
                 };
                 let pipeline = spv::PipelineOptions {
                     shader_stage: stage,
                     entry_point: point.clone(),
                 };
-                spv::write_vec(module, &info, &options, Some(&pipeline))
-                    .map(drop)
-                    .map_err(|e| e.to_string())
+                let words = spv::write_vec(module, &info, &options, Some(&pipeline))
+                    .map_err(|e| e.to_string())?;
+                if let Some(out) = &out {
+                    let file: String = name
+                        .chars()
+                        .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
+                        .collect();
+                    let bytes: Vec<u8> = words.iter().flat_map(|w| w.to_le_bytes()).collect();
+                    std::fs::write(
+                        Path::new(out).join(format!("{dimension}_{file}.spv")),
+                        bytes,
+                    )
+                    .unwrap();
+                }
+                Ok(())
             }),
             ("hlsl", &|| {
                 use naga::back::hlsl;
@@ -415,9 +446,81 @@ fn backends(post: &horizon_shaders::Post) {
         "    backends: {} modules, {errors} errors, {panics} panics",
         modules.len()
     );
+    if std::env::var_os("EMPTIED").is_some() {
+        emptied(&modules, &programs);
+    }
     assert_eq!(
         (errors, panics),
         (0, 0),
         "a backend failed on a translated module"
     );
+}
+
+/// `EMPTIED=1`: every module with any one function left empty, as `narrow_down` tries a program
+/// a GPU driver refuses, validates; and a driver refusing a scalar `distance` (what Lux's sky has
+/// that none of its programs Adreno 740 compiles has) is narrowed down to the function using it.
+fn emptied(modules: &[(String, &naga::Module)], programs: &[(&str, &naga::Module, &naga::Module)]) {
+    let validate = |m: &naga::Module| {
+        naga::valid::Validator::new(
+            naga::valid::ValidationFlags::all(),
+            naga::valid::Capabilities::all(),
+        )
+        .validate(m)
+    };
+    let (mut tried, mut invalid) = (0, 0);
+    let start = Instant::now();
+    for (name, module) in modules {
+        for (f, function) in module.functions.iter() {
+            tried += 1;
+            if let Err(e) = validate(&horizon_shaders::emptied(module, f)) {
+                invalid += 1;
+                println!("    emptied {name}: {:?}: {e:?}", function.name);
+            }
+        }
+    }
+    println!(
+        "    emptied: {tried} modules, {invalid} invalid, {:.2} ms each",
+        start.elapsed().as_secs_f64() * 1000.0 / tried.max(1) as f64
+    );
+    assert_eq!(
+        invalid, 0,
+        "a module with a function left empty does not validate"
+    );
+    // Whether `m` writes a `distance` of two scalars (one in an expression nothing uses is not
+    // written: compacting removes it, as emptying any function does).
+    let scalar_distance = |m: &naga::Module| {
+        let mut m = m.clone();
+        naga::compact::compact(&mut m, naga::compact::KeepUnused::No);
+        let m = &m;
+        let info = validate(m).expect("validates");
+        let functions = m.functions.iter().map(|(h, f)| (f, &info[h]));
+        let entries = (m.entry_points.iter().enumerate())
+            .map(|(i, e)| (&e.function, info.get_entry_point(i)));
+        functions.chain(entries).any(|(f, fi)| {
+            f.expressions.iter().any(|(_, e)| match *e {
+                naga::Expression::Math {
+                    fun: naga::MathFunction::Distance,
+                    arg,
+                    ..
+                } => matches!(*fi[arg].ty.inner_with(&m.types), naga::TypeInner::Scalar(_)),
+                _ => false,
+            })
+        })
+    };
+    for &(name, vertex, fragment) in programs {
+        if !scalar_distance(vertex) && !scalar_distance(fragment) {
+            continue;
+        }
+        let start = Instant::now();
+        let note = horizon_shaders::narrow_down(
+            vertex,
+            fragment,
+            |tried| tried < 24,
+            |v, f| !scalar_distance(&v) && !scalar_distance(&f),
+        );
+        println!(
+            "    {name}, a driver refusing scalar distance: {note}, {:.2} s",
+            start.elapsed().as_secs_f64()
+        );
+    }
 }

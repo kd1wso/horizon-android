@@ -746,6 +746,44 @@ fn checked<T>(device: &wgpu::Device, create: impl FnOnce() -> T) -> Result<T, St
     }
 }
 
+/// What of `program` the GPU driver refuses, narrowed down with `compiles` (which creates its
+/// pipeline from other modules) for the log, in at most 24 tries and 6 seconds: once per program
+/// as its pack is loaded again (another dimension, other options).
+fn narrowed(
+    name: &str,
+    program: &horizon_shaders::Program,
+    compiles: impl FnMut(naga::Module, naga::Module) -> bool,
+) -> String {
+    static DONE: std::sync::Mutex<Vec<(String, String)>> = std::sync::Mutex::new(Vec::new());
+    let size =
+        |m: &naga::Module| -> usize { m.functions.iter().map(|(_, f)| f.expressions.len()).sum() };
+    let key = format!(
+        "{name} {} {}",
+        size(&program.vertex),
+        size(&program.fragment)
+    );
+    let done = || {
+        DONE.lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+    };
+    if let Some((_, note)) = done().iter().find(|d| d.0 == key) {
+        return note.clone();
+    }
+    let start = std::time::Instant::now();
+    let budget = |tried: usize| tried < 24 && start.elapsed().as_secs() < 6;
+    let note = crate::crash::contain(|| {
+        horizon_shaders::narrow_down(&program.vertex, &program.fragment, budget, compiles)
+    })
+    .unwrap_or_else(|panic| format!("narrowing it down failed: {panic}"));
+    let note = format!("{note}, {:.1} s", start.elapsed().as_secs_f64());
+    let mut done = done();
+    if done.len() >= 8 {
+        done.remove(0);
+    }
+    done.push((key, note.clone()));
+    note
+}
+
 /// A full-screen helper pipeline of ours (`pack_post.wgsl`).
 fn helper(
     device: &wgpu::Device,
@@ -1381,73 +1419,84 @@ fn build_pass(
     } else {
         (written & !kept) | mask(&p.flips)
     };
-    let created = checked(device, || {
-        let layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: Some(&p.name),
-            entries: &entries,
-        });
-        let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some(&p.name),
-            bind_group_layouts: &[
-                Some(&layout),
-                geometry.and_then(|g| g.table),
-                draw.then_some(draws),
-                geometry.and_then(|g| g.ids),
-                (!interface.buffers.is_empty()).then_some(&pack.buffers.layout),
-                pack.indices.filter(|_| p.geometry_triangles > 0),
-            ],
-            ..Default::default()
-        });
-        let module = |mut m: naga::Module| {
-            share_samplers(&mut m, &slots);
-            device.create_shader_module(wgpu::ShaderModuleDescriptor {
+    // The pipeline, from the program's modules or (narrowing down what a GPU driver refuses)
+    // others for the same layout.
+    let create = |vertex: naga::Module, fragment: naga::Module| {
+        checked(device, || {
+            let layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                 label: Some(&p.name),
-                source: wgpu::ShaderSource::Naga(std::borrow::Cow::Owned(m)),
-            })
-        };
-        let (vs, fs) = (module(program.vertex), module(program.fragment));
-        let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some(&p.name),
-            layout: Some(&pipeline_layout),
-            vertex: wgpu::VertexState {
-                module: &vs,
-                entry_point: Some("main"),
-                compilation_options: Default::default(),
-                // A geometry stage reads its vertices itself.
-                buffers: geometry
-                    .filter(|_| p.geometry_triangles == 0)
-                    .map_or(&[], |g| g.buffers),
-            },
-            // Rows flipped to GL's turn front faces clockwise.
-            primitive: wgpu::PrimitiveState {
-                front_face: wgpu::FrontFace::Cw,
-                cull_mode: geometry
-                    .filter(|g| g.cull && p.geometry_triangles == 0)
-                    .map(|_| wgpu::Face::Back),
+                entries: &entries,
+            });
+            let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some(&p.name),
+                bind_group_layouts: &[
+                    Some(&layout),
+                    geometry.and_then(|g| g.table),
+                    draw.then_some(draws),
+                    geometry.and_then(|g| g.ids),
+                    (!interface.buffers.is_empty()).then_some(&pack.buffers.layout),
+                    pack.indices.filter(|_| p.geometry_triangles > 0),
+                ],
                 ..Default::default()
-            },
-            depth_stencil: geometry.map(|g| wgpu::DepthStencilState {
-                format: wgpu::TextureFormat::Depth32Float,
-                depth_write_enabled: Some(g.depth_write),
-                depth_compare: Some(wgpu::CompareFunction::LessEqual),
-                stencil: Default::default(),
-                bias: Default::default(),
-            }),
-            multisample: Default::default(),
-            fragment: Some(wgpu::FragmentState {
-                module: &fs,
-                entry_point: Some("main"),
-                compilation_options: Default::default(),
-                targets: &targets,
-            }),
-            multiview_mask: None,
-            cache: None,
-        });
-        (layout, pipeline)
-    });
-    let (layout, pipeline) = match created {
+            });
+            let module = |mut m: naga::Module| {
+                share_samplers(&mut m, &slots);
+                device.create_shader_module(wgpu::ShaderModuleDescriptor {
+                    label: Some(&p.name),
+                    source: wgpu::ShaderSource::Naga(std::borrow::Cow::Owned(m)),
+                })
+            };
+            let (vs, fs) = (module(vertex), module(fragment));
+            let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                label: Some(&p.name),
+                layout: Some(&pipeline_layout),
+                vertex: wgpu::VertexState {
+                    module: &vs,
+                    entry_point: Some("main"),
+                    compilation_options: Default::default(),
+                    // A geometry stage reads its vertices itself.
+                    buffers: geometry
+                        .filter(|_| p.geometry_triangles == 0)
+                        .map_or(&[], |g| g.buffers),
+                },
+                // Rows flipped to GL's turn front faces clockwise.
+                primitive: wgpu::PrimitiveState {
+                    front_face: wgpu::FrontFace::Cw,
+                    cull_mode: geometry
+                        .filter(|g| g.cull && p.geometry_triangles == 0)
+                        .map(|_| wgpu::Face::Back),
+                    ..Default::default()
+                },
+                depth_stencil: geometry.map(|g| wgpu::DepthStencilState {
+                    format: wgpu::TextureFormat::Depth32Float,
+                    depth_write_enabled: Some(g.depth_write),
+                    depth_compare: Some(wgpu::CompareFunction::LessEqual),
+                    stencil: Default::default(),
+                    bias: Default::default(),
+                }),
+                multisample: Default::default(),
+                fragment: Some(wgpu::FragmentState {
+                    module: &fs,
+                    entry_point: Some("main"),
+                    compilation_options: Default::default(),
+                    targets: &targets,
+                }),
+                multiview_mask: None,
+                cache: None,
+            });
+            (layout, pipeline)
+        })
+    };
+    let (layout, pipeline) = match create(program.vertex.clone(), program.fragment.clone()) {
         Ok(created) => created,
         Err(e) => {
+            if e.contains("the Vulkan driver did not create") {
+                let narrowed = narrowed(&p.name, &program, |v, f| create(v, f).is_ok());
+                notes.push(format!(
+                    "{}: the GPU driver did not compile it; {narrowed}",
+                    p.name
+                ));
+            }
             notes.push(format!("{}: skipped: {e}", p.name));
             return None;
         }

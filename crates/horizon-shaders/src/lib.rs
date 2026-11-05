@@ -25,6 +25,7 @@ mod custom;
 mod discover;
 mod lang;
 mod macros;
+mod narrow;
 mod options;
 mod pack;
 mod post;
@@ -43,6 +44,7 @@ pub use custom::{Custom, Val};
 pub use discover::{Found, discover};
 pub use lang::Lang;
 pub use macros::{MC_VERSION, Macros, RENDER_STAGES, render_stage};
+pub use narrow::{emptied, narrow_down};
 pub use options::{
     PackOption, apply as apply_options, chosen_file, chosen_text, options, parse_chosen,
     switches_on, value_options, with_options,

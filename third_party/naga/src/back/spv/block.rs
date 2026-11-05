@@ -1556,7 +1556,29 @@ impl BlockContext<'_> {
                         arg1_id,
                     )),
                     Mf::Cross => MathOp::Ext(spirv::GlslStd450Op::Cross),
-                    Mf::Distance => MathOp::Ext(spirv::GlslStd450Op::Distance),
+                    // Of scalars, `abs(a - b)`: Adreno 740's compiler (E031.41) creates no
+                    // pipeline for Lux 1.2's sky, and a scalar `Distance` is what it has that
+                    // none of the pack's programs the driver compiles has.
+                    Mf::Distance => match *arg_ty {
+                        crate::TypeInner::Scalar(_) => {
+                            let difference_id = self.gen_id();
+                            block.body.push(Instruction::binary(
+                                spirv::Op::FSub,
+                                result_type_id,
+                                difference_id,
+                                arg0_id,
+                                arg1_id,
+                            ));
+                            MathOp::Custom(Instruction::ext_inst_gl_op(
+                                self.writer.gl450_ext_inst_id,
+                                spirv::GlslStd450Op::FAbs,
+                                result_type_id,
+                                id,
+                                &[difference_id],
+                            ))
+                        }
+                        _ => MathOp::Ext(spirv::GlslStd450Op::Distance),
+                    },
                     Mf::Length => MathOp::Ext(spirv::GlslStd450Op::Length),
                     Mf::Normalize => MathOp::Ext(spirv::GlslStd450Op::Normalize),
                     Mf::FaceForward => MathOp::Ext(spirv::GlslStd450Op::FaceForward),

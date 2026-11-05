@@ -13,8 +13,11 @@ losing the device. It is licensed under MIT or Apache-2.0; both licenses are in 
 ## naga
 
 `third_party/naga` is [naga](https://github.com/gfx-rs/wgpu) 30.0.1 by the gfx-rs developers, with
-fixes to its GLSL frontend that shader packs need, each applied in the commit that needed it. It is licensed under MIT or Apache-2.0; both licenses
-are in that folder (`LICENSE.MIT`, `LICENSE.APACHE`).
+fixes to its GLSL frontend that shader packs need, each applied in the commit that needed it. Its
+SPIR-V backend writes a `distance` of two scalars as `abs(a - b)` (the same value): the one program
+of the Lux pack the Vulkan driver of an Adreno 740 refused is the only one with such a `distance`.
+It is licensed under MIT or Apache-2.0; both licenses are in that folder (`LICENSE.MIT`,
+`LICENSE.APACHE`).
 
 ## Pixelify Sans
 
