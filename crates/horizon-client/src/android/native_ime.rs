@@ -34,6 +34,8 @@ enum Command {
     Bounds,
     ImportDocument,
     ImportWorld,
+    /// A PNG for this request code (`skin_picker`).
+    ImportImage(i32),
     CreateDocument(String),
     Screen(bool, bool),
 }
@@ -328,7 +330,12 @@ impl Ui {
                 }
                 self.enqueue(Command::Bounds);
             }
-            cmd @ (Command::ImportDocument | Command::ImportWorld) => {
+            cmd @ (Command::ImportDocument | Command::ImportWorld | Command::ImportImage(_)) => {
+                let (mime, request) = match cmd {
+                    Command::ImportWorld => ("application/zip", crate::world_transfer::IMPORT_REQUEST),
+                    Command::ImportImage(request) => ("image/png", request),
+                    _ => ("*/*", 4101),
+                };
                 let result = (|| -> jni::errors::Result<()> {
                     let action =
                         JObject::from(env.new_string("android.intent.action.OPEN_DOCUMENT")?);
@@ -345,7 +352,7 @@ impl Ui {
                         "(Ljava/lang/String;)Landroid/content/Intent;",
                         &[JValue::Object(&category)],
                     )?;
-                    let mime = JObject::from(env.new_string(if matches!(cmd, Command::ImportWorld) { "application/zip" } else { "*/*" })?);
+                    let mime = JObject::from(env.new_string(mime)?);
                     env.call_method(
                         &intent,
                         "setType",
@@ -362,17 +369,17 @@ impl Ui {
                         &self.activity,
                         "startActivityForResult",
                         "(Landroid/content/Intent;I)V",
-                        &[JValue::Object(&intent), JValue::Int(if matches!(cmd, Command::ImportWorld) { crate::world_transfer::IMPORT_REQUEST } else { 4101 })],
+                        &[JValue::Object(&intent), JValue::Int(request)],
                     )?;
                     Ok(())
                 })();
                 if let Err(error) = result {
                     let _ = env.exception_clear();
                     log::warn!("Document picker: {error}");
-                    if matches!(cmd, Command::ImportWorld) {
-                        crate::world_transfer::picker_failed("No Android document picker is available");
-                    } else {
-                        crate::documents::picker_failed("No Android document picker is available");
+                    match cmd {
+                        Command::ImportWorld => crate::world_transfer::picker_failed("No Android document picker is available"),
+                        Command::ImportImage(_) => crate::skin_picker::picker_failed("No Android document picker is available"),
+                        _ => crate::documents::picker_failed("No Android document picker is available"),
                     }
                 }
             }
@@ -736,6 +743,13 @@ pub fn pick_document() -> bool {
 pub fn pick_world_document() -> bool {
     let Some(ui) = UI.get().filter(|ui| !ui.failed.load(Ordering::Acquire)) else { return false; };
     ui.enqueue(Command::ImportWorld);
+    true
+}
+
+/// The system file picker for a PNG; its answer comes back with `request`.
+pub fn pick_image(request: i32) -> bool {
+    let Some(ui) = UI.get().filter(|ui| !ui.failed.load(Ordering::Acquire)) else { return false; };
+    ui.enqueue(Command::ImportImage(request));
     true
 }
 

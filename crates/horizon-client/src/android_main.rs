@@ -61,6 +61,8 @@ mod search_queue;
 mod secure_store;
 #[path = "android/shader_catalog.rs"]
 mod shader_catalog;
+#[path = "android/skin_picker.rs"]
+mod skin_picker;
 #[rustfmt::skip]
 #[allow(dead_code)]
 #[path = "../../../launcher/src/skins.rs"]
@@ -68,9 +70,9 @@ mod skins;
 // The shared account protocol needs only the launcher's version and data path.
 mod backend {
     pub const VERSION: &str = if crate::PUBLIC_BUILD {
-        "0.7.7"
+        "0.7.8"
     } else {
-        "0.7.7-dev"
+        "0.7.8-dev"
     };
     static HOME: std::sync::OnceLock<std::path::PathBuf> = std::sync::OnceLock::new();
     pub fn initialize(home: std::path::PathBuf) {

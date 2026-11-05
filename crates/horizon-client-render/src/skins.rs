@@ -626,37 +626,82 @@ pub fn process_cape(width: u32, height: u32, rgba: &[u8]) -> Option<Vec<u8>> {
     Some(img)
 }
 
+/// The look a launcher hands the game it starts in its own process (the
+/// Android launcher), in place of `HORIZON_OFFLINE_SKIN`,
+/// `HORIZON_OFFLINE_SKIN_MODEL` and `HORIZON_OFFLINE_CAPE`: the skin's PNG and
+/// whether it is slim, the cape's PNG.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct OfflineLook {
+    pub skin: Option<(std::path::PathBuf, bool)>,
+    pub cape: Option<std::path::PathBuf>,
+}
+
+type Cached<T> = std::sync::Mutex<Option<Option<std::sync::Arc<T>>>>;
+static GIVEN_LOOK: std::sync::Mutex<Option<OfflineLook>> = std::sync::Mutex::new(None);
+static OFFLINE_SKIN: Cached<(Vec<u8>, bool)> = std::sync::Mutex::new(None);
+static OFFLINE_CAPE: Cached<Vec<u8>> = std::sync::Mutex::new(None);
+
+fn locked<T>(m: &std::sync::Mutex<T>) -> std::sync::MutexGuard<'_, T> {
+    m.lock().unwrap_or_else(|e| e.into_inner())
+}
+
+/// Gives the next game `look` (`None`: the environment's again); the next
+/// `offline_skin` and `offline_cape` read their files afresh. A launcher that
+/// runs games in its own process calls it before each one.
+pub fn give_offline_look(look: Option<OfflineLook>) {
+    *locked(&GIVEN_LOOK) = look;
+    *locked(&OFFLINE_SKIN) = None;
+    *locked(&OFFLINE_CAPE) = None;
+}
+
 /// The cape the launcher gives an offline name (`HORIZON_OFFLINE_CAPE`, a
-/// PNG's path; launcher/src/skins.rs), read once as `process_cape` lays it out.
-pub fn offline_cape() -> Option<&'static [u8]> {
-    static CAPE: std::sync::OnceLock<Option<Vec<u8>>> = std::sync::OnceLock::new();
-    CAPE.get_or_init(|| {
-        let path = std::env::var_os("HORIZON_OFFLINE_CAPE").filter(|p| !p.is_empty())?;
-        let image = std::fs::read(&path)
-            .map_err(|e| e.to_string())
-            .and_then(|bytes| crate::hud::decode_bytes(&bytes).map_err(|e| e.to_string()))
-            .and_then(|(w, h, rgba)| process_cape(w, h, &rgba).ok_or("not an image".into()));
-        image
-            .inspect_err(|e| eprintln!("Horizon: no offline cape ({}): {e}", path.display()))
-            .ok()
-    })
-    .as_deref()
+/// PNG's path; launcher/src/skins.rs, or `give_offline_look`), read once as
+/// `process_cape` lays it out.
+pub fn offline_cape() -> Option<std::sync::Arc<Vec<u8>>> {
+    locked(&OFFLINE_CAPE)
+        .get_or_insert_with(|| {
+            let path = match locked(&GIVEN_LOOK).as_ref() {
+                Some(look) => look.cape.clone()?.into_os_string(),
+                None => std::env::var_os("HORIZON_OFFLINE_CAPE").filter(|p| !p.is_empty())?,
+            };
+            let image = std::fs::read(&path)
+                .map_err(|e| e.to_string())
+                .and_then(|bytes| crate::hud::decode_bytes(&bytes).map_err(|e| e.to_string()))
+                .and_then(|(w, h, rgba)| process_cape(w, h, &rgba).ok_or("not an image".into()));
+            image
+                .inspect_err(|e| eprintln!("Horizon: no offline cape ({}): {e}", path.display()))
+                .ok()
+                .map(std::sync::Arc::new)
+        })
+        .clone()
 }
 
 /// The skin the launcher gives an offline name (`HORIZON_OFFLINE_SKIN`, a
 /// PNG's path, and `HORIZON_OFFLINE_SKIN_MODEL`, `classic` or `slim`;
-/// launcher/src/skins.rs): its 64x64 RGBA as `process_legacy_skin` lays it
-/// out, and whether it is slim. Read once.
-pub fn offline_skin() -> Option<&'static (Vec<u8>, bool)> {
-    static SKIN: std::sync::OnceLock<Option<(Vec<u8>, bool)>> = std::sync::OnceLock::new();
-    SKIN.get_or_init(|| {
-        let path = std::env::var_os("HORIZON_OFFLINE_SKIN").filter(|p| !p.is_empty())?;
-        let model = std::env::var("HORIZON_OFFLINE_SKIN_MODEL").unwrap_or_default();
-        read_offline_skin(std::path::Path::new(&path), &model)
-            .inspect_err(|e| eprintln!("Horizon: no offline skin ({}): {e}", path.display()))
-            .ok()
-    })
-    .as_ref()
+/// launcher/src/skins.rs, or `give_offline_look`): its 64x64 RGBA as
+/// `process_legacy_skin` lays it out, and whether it is slim. Read once.
+pub fn offline_skin() -> Option<std::sync::Arc<(Vec<u8>, bool)>> {
+    locked(&OFFLINE_SKIN)
+        .get_or_insert_with(|| {
+            let (path, model) = match locked(&GIVEN_LOOK).as_ref() {
+                Some(look) => {
+                    let (path, slim) = look.skin.clone()?;
+                    (
+                        path.into_os_string(),
+                        if slim { "slim" } else { "classic" }.to_owned(),
+                    )
+                }
+                None => (
+                    std::env::var_os("HORIZON_OFFLINE_SKIN").filter(|p| !p.is_empty())?,
+                    std::env::var("HORIZON_OFFLINE_SKIN_MODEL").unwrap_or_default(),
+                ),
+            };
+            read_offline_skin(std::path::Path::new(&path), &model)
+                .inspect_err(|e| eprintln!("Horizon: no offline skin ({}): {e}", path.display()))
+                .ok()
+                .map(std::sync::Arc::new)
+        })
+        .clone()
 }
 fn read_offline_skin(path: &std::path::Path, model: &str) -> Result<(Vec<u8>, bool), String> {
     let bytes = std::fs::read(path).map_err(|e| e.to_string())?;
@@ -1123,19 +1168,7 @@ mod tests {
     /// refused and the player keeps their default skin.
     #[test]
     fn offline_skins_read_like_downloaded_ones() {
-        let png = |w: u32, h: u32| {
-            let rgba: Vec<u8> = (0..w * h * 4).map(|i| (i % 251) as u8).collect();
-            let mut out = Vec::new();
-            let mut encoder = png::Encoder::new(&mut out, w, h);
-            encoder.set_color(png::ColorType::Rgba);
-            encoder.set_depth(png::BitDepth::Eight);
-            encoder
-                .write_header()
-                .unwrap()
-                .write_image_data(&rgba)
-                .unwrap();
-            (out, rgba)
-        };
+        let png = test_png;
         let dir = std::env::temp_dir().join(format!("horizon-offline-skin-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let file = dir.join("steve.png");
@@ -1152,6 +1185,52 @@ mod tests {
         std::fs::write(&file, b"not a png").unwrap();
         assert!(super::read_offline_skin(&file, "slim").is_err());
         assert!(super::read_offline_skin(&dir.join("missing.png"), "").is_err());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// A `w`×`h` PNG of made-up texels, and its RGBA.
+    fn test_png(w: u32, h: u32) -> (Vec<u8>, Vec<u8>) {
+        let rgba: Vec<u8> = (0..w * h * 4).map(|i| (i % 251) as u8).collect();
+        let mut out = Vec::new();
+        let mut encoder = png::Encoder::new(&mut out, w, h);
+        encoder.set_color(png::ColorType::Rgba);
+        encoder.set_depth(png::BitDepth::Eight);
+        encoder
+            .write_header()
+            .unwrap()
+            .write_image_data(&rgba)
+            .unwrap();
+        (out, rgba)
+    }
+
+    /// A launcher running games in its own process (Android) gives each one
+    /// its look in place of the environment, and the files are read afresh:
+    /// what changed in the launcher shows in the next game.
+    #[test]
+    fn a_given_look_is_read_afresh_for_each_game() {
+        use super::{OfflineLook, give_offline_look, offline_cape, offline_skin};
+        let dir = std::env::temp_dir().join(format!("horizon-given-look-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let (skin, cape) = (dir.join("player.png"), dir.join("player.cape.png"));
+        std::fs::write(&skin, test_png(64, 64).0).unwrap();
+        std::fs::write(&cape, test_png(64, 32).0).unwrap();
+        give_offline_look(Some(OfflineLook {
+            skin: Some((skin.clone(), true)),
+            cape: Some(cape),
+        }));
+        assert!(offline_skin().is_some_and(|s| s.1 && s.0.len() == 64 * 64 * 4));
+        assert!(offline_cape().is_some_and(|c| c.len() == 64 * 64 * 4));
+        // The next game: the older 64×32 skin with classic arms, and no cape.
+        std::fs::write(&skin, test_png(64, 32).0).unwrap();
+        give_offline_look(Some(OfflineLook {
+            skin: Some((skin, false)),
+            cape: None,
+        }));
+        assert!(offline_skin().is_some_and(|s| !s.1 && s.0.len() == 64 * 64 * 4));
+        assert!(offline_cape().is_none());
+        give_offline_look(Some(OfflineLook::default()));
+        assert!(offline_skin().is_none());
+        give_offline_look(None);
         let _ = std::fs::remove_dir_all(&dir);
     }
 

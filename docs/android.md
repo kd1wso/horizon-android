@@ -39,6 +39,9 @@ dynamic slots and the separate terrain texture arrays.
   on 64-bit builds. New packages are disabled until enabled in Installed.
 - **Packs:** find and install resource packs with checksum verification.
 - **Installed:** enable, disable or remove installed additions.
+- **Worlds:** import a world from a ZIP archive, or export one to `<world>.zip`.
+- **Skins:** the skin and cape worn in offline play, PNGs chosen in the system
+  file picker (see [Skins](#skins)).
 - **Settings:** rendering mode, input mode, profile, server and orientation.
   Profiles keep separate saves and settings. Offline player names are edited
   alongside Microsoft sign-in in **Accounts**.
@@ -63,6 +66,23 @@ kept in private storage. Clearing app data requires signing in again. The curren
 application registration is a temporary development configuration, not a
 project-owned Microsoft/Mojang approval. Production registration remains pending.
 Server and anticheat compatibility varies; see [account integration](microsoft-account.md).
+
+### Skins
+
+The **Skins** page gives the offline player a skin and a cape. **Choose PNG**
+opens the system file picker (PNG pictures only): a skin is 64×64, or the older
+64×32 whose left arm and leg mirror the right ones; a cape is 64×32 (or the
+older 22×17). **Model** draws the skin's arms Classic (4 px, "Steve") or Slim
+(3 px, "Alex"). Other sizes, files over 1 MiB and pictures that do not decode
+are refused, and the previous file stays. A panel shows the front of the skin
+and the cape; **Remove** goes back to the default skin (or no cape).
+
+The files are kept in the launcher's private storage (`skins/player.png` and
+`skins/player.cape.png`), one look for every profile. The game wears them from
+the next **Play** when it plays offline: singleplayer and servers that give the
+player no skin of their own. They are drawn on this device only; other players
+see the default skin. A signed-in Microsoft account wears the account's skin
+and cape instead.
 
 ## Touch controls
 

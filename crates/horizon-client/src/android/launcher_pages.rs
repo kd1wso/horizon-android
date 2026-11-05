@@ -61,6 +61,11 @@ pub(super) enum Action {
     WorldFiles,
     ImportWorld,
     ExportWorld(usize),
+    ChooseSkin,
+    ChooseCape,
+    RemoveSkin,
+    RemoveCape,
+    SkinModel(crate::skins::Model),
     GameFiles,
     WorkerLimit,
     ChooseWorkerLimit(u32),
@@ -836,6 +841,16 @@ impl Launcher {
                 &mut self.list_view,
                 &self.catalog.config.game_home(&self.home),
             );
+        } else if page == Page::Skins {
+            Self::draw_skins_page(
+                &mut ui,
+                w,
+                h,
+                compact,
+                &mut self.targets,
+                self.catalog.config.skin_model,
+                self.login.signed_in,
+            );
         } else if page == Page::Settings {
             let c = &self.catalog.config;
             ui.text(
@@ -1347,6 +1362,174 @@ impl Launcher {
         }
     }
 
+    /// The offline skin and cape (`skin_picker`): PNGs chosen in the system file picker, the
+    /// model the skin's arms are drawn with, and the front of both on a panel beside the rows
+    /// (below them on phones).
+    fn draw_skins_page(
+        ui: &mut Ui,
+        w: f32,
+        h: f32,
+        compact: bool,
+        targets: &mut Vec<([f32; 4], Action)>,
+        model: crate::skins::Model,
+        signed_in: bool,
+    ) {
+        use crate::skins::Model;
+        let preview = crate::skin_picker::preview(model);
+        // Three rows above the status line, as tall as the screen allows.
+        let top = if compact { 204.0 } else { 186.0 };
+        let step = ((h - 56.0 - top) / 3.0).clamp(40.0, 50.0);
+        // The panel's texels: the skin's front is 16×32 of them, the cape's 10×16.
+        let panel_y = if compact {
+            top + 3.0 * step + 4.0
+        } else {
+            142.0
+        };
+        let mut texel = ((h - 56.0 - panel_y - 24.0) / 32.0).min(10.0).floor();
+        if compact {
+            texel = texel.min(((w - 100.0) / 26.0).floor());
+        }
+        let panel = (texel >= 2.0).then_some((26.0 * texel + 36.0, 32.0 * texel + 24.0));
+        let width = match panel {
+            Some((panel_w, _)) if !compact => w - 88.0 - panel_w,
+            _ => w - 64.0,
+        };
+        ui.text(Face::Medium, 24.0, 32.0, 142.0, color::TEXT, "Skin");
+        let note = if signed_in {
+            "For offline play; your Microsoft account wears its own skin."
+        } else {
+            "Worn in offline play. A skin is a 64×64 PNG, a cape 64×32."
+        };
+        let (note_x, note_y) = if compact {
+            (32.0, 178.0)
+        } else {
+            (48.0 + ui.measure(Face::Medium, 24.0, "Skin"), 151.0)
+        };
+        ui.text(
+            Face::Regular,
+            14.0,
+            note_x,
+            note_y,
+            color::MUTED,
+            &ui.fit_text(Face::Regular, 14.0, note, 32.0 + width - note_x),
+        );
+        let label = if compact { 64.0 } else { 80.0 };
+        let bw = ((width - label - 8.0) / 2.0).min(170.0);
+        let x = [32.0 + label, 40.0 + label + bw];
+        let choose = if bw >= 130.0 { "Choose PNG" } else { "Choose" };
+        let row = |i: f32| [top + i * step, step - 8.0];
+        for (i, name) in ["Skin", "Model", "Cape"].into_iter().enumerate() {
+            // Level with the buttons' labels (`button`).
+            ui.text(
+                Face::Medium,
+                16.0,
+                32.0,
+                row(i as f32)[0] + 11.0,
+                color::TEXT,
+                name,
+            );
+        }
+        let [y, height] = row(0.0);
+        button(
+            ui,
+            targets,
+            [x[0], y, bw, height],
+            choose,
+            Action::ChooseSkin,
+            true,
+        );
+        if preview.kept.0 {
+            button(
+                ui,
+                targets,
+                [x[1], y, bw, height],
+                "Remove",
+                Action::RemoveSkin,
+                false,
+            );
+        }
+        let [y, height] = row(1.0);
+        for (i, (choice, name)) in [(Model::Classic, "Classic"), (Model::Slim, "Slim")]
+            .into_iter()
+            .enumerate()
+        {
+            let rect = [x[i], y, bw, height];
+            button(ui, targets, rect, name, Action::SkinModel(choice), false);
+            if choice == model {
+                ui.border(rect[0], rect[1], rect[2], rect[3], 1.0, color::TEXT);
+            }
+        }
+        let [y, height] = row(2.0);
+        button(
+            ui,
+            targets,
+            [x[0], y, bw, height],
+            choose,
+            Action::ChooseCape,
+            false,
+        );
+        if preview.kept.1 {
+            button(
+                ui,
+                targets,
+                [x[1], y, bw, height],
+                "Remove",
+                Action::RemoveCape,
+                false,
+            );
+        }
+        let Some((panel_w, panel_h)) = panel else {
+            return;
+        };
+        let panel_x = if compact { 32.0 } else { w - 32.0 - panel_w };
+        ui.rounded(panel_x, panel_y, panel_w, panel_h, 4.0, color::RAISED);
+        // Texels in the HUD's colour encoding (`hud::rgba`: R in the low byte), clear ones
+        // skipped, `columns` to a row from (x, y).
+        fn texels(ui: &mut Ui, pixels: &[[u8; 4]], columns: usize, [x, y, texel]: [f32; 3]) {
+            for (i, px) in pixels.iter().enumerate() {
+                if px[3] > 0 {
+                    let (cx, cy) = ((i % columns) as f32, (i / columns) as f32);
+                    ui.rounded(
+                        x + cx * texel,
+                        y + cy * texel,
+                        texel,
+                        texel,
+                        0.0,
+                        u32::from_le_bytes(*px),
+                    );
+                }
+            }
+        }
+        let (skin_x, y) = (panel_x + 12.0, panel_y + 12.0);
+        match &preview.skin {
+            Some(front) => texels(ui, front, 16, [skin_x, y, texel]),
+            None => {
+                // No skin: the default one shows, here as a silhouette with the model's arms.
+                let arm = if model == Model::Slim { 3.0 } else { 4.0 };
+                for [px, py, pw, ph] in [
+                    [4.0, 0.0, 8.0, 8.0],
+                    [4.0, 8.0, 8.0, 12.0],
+                    [4.0 - arm, 8.0, arm, 12.0],
+                    [12.0, 8.0, arm, 12.0],
+                    [4.0, 20.0, 4.0, 12.0],
+                    [8.0, 20.0, 4.0, 12.0],
+                ] {
+                    ui.rounded(
+                        skin_x + px * texel,
+                        y + py * texel,
+                        pw * texel,
+                        ph * texel,
+                        0.0,
+                        color::HOVER,
+                    );
+                }
+            }
+        }
+        if let Some(cape) = &preview.cape {
+            texels(ui, cape, 10, [skin_x + 16.0 * texel + 12.0, y, texel]);
+        }
+    }
+
     pub(super) fn activate(&mut self, events: &ActiveEventLoop) -> Result<()> {
         if self.session_worker.is_some() && self.chooser.is_none() && !self.exit_confirmation {
             return Ok(());
@@ -1488,6 +1671,31 @@ impl Launcher {
                         self.catalog.status = error;
                     }
                 }
+            }
+            Some(action @ (Action::ChooseSkin | Action::ChooseCape)) => {
+                if let Err(error) = crate::skin_picker::begin(action == Action::ChooseCape) {
+                    self.catalog.status = error;
+                }
+            }
+            Some(action @ (Action::RemoveSkin | Action::RemoveCape)) => {
+                let cape = action == Action::RemoveCape;
+                self.catalog.status = match crate::skin_picker::remove(cape) {
+                    Ok(()) if cape => "Cape removed. Applies on the next Play.".into(),
+                    Ok(()) => "Skin removed: the default one shows from the next Play.".into(),
+                    Err(error) => error,
+                };
+            }
+            Some(Action::SkinModel(model)) => {
+                self.catalog.config.skin_model = model;
+                self.catalog.config.save(&self.home)?;
+                self.catalog.status = format!(
+                    "{} arms saved. Applies on the next Play.",
+                    if model == crate::skins::Model::Slim {
+                        "Slim (3 px)"
+                    } else {
+                        "Classic (4 px)"
+                    }
+                );
             }
 
             Some(Action::WorkerLimit) => self.open_chooser(chooser::Kind::WorkerLimit),

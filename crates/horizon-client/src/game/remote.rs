@@ -4878,8 +4878,9 @@ impl Game<'_> {
         // An offline name's skin from the launcher, where neither the server
         // nor an account gives the local player one.
         if !resolved.iter().any(|(u, _)| *u == local)
-            && let Some((rgba, is_slim)) = horizon_client::skins::offline_skin()
+            && let Some(skin) = horizon_client::skins::offline_skin()
         {
+            let (rgba, is_slim) = &*skin;
             const OFFLINE: &str = "horizon/offline_skin";
             if !self.skin_slots.contains(OFFLINE) || !self.gui.atlas.sprites.contains_key(OFFLINE) {
                 self.store_skin(OFFLINE.into(), rgba.clone());

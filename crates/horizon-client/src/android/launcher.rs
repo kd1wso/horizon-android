@@ -339,19 +339,28 @@ impl Launcher {
             horizon_client::android_runtime::clear_gamepads();
             self.controller_edges = Default::default();
             self.controller_repeat = None;
+            let session_file = self.prepared_session.take();
+            // An account wears its own skin; the picked one is for offline play.
+            let (offline_skin, offline_cape) = if session_file.is_none() {
+                crate::skin_picker::look(self.catalog.config.skin_model)
+            } else {
+                (None, None)
+            };
             let request = crate::game_launch::LaunchRequest {
                 resources: self
                     .home
                     .join(".local/horizon-client")
                     .join(horizon_core::VANILLA_VERSION),
                 game_home,
-                session_file: self.prepared_session.take(),
+                session_file,
                 offline_name: self.catalog.config.name.clone(),
                 server: self.catalog.config.server.clone(),
                 control_socket: (!crate::PUBLIC_BUILD).then(|| self.home.join("control.json")),
                 extra_arguments,
                 open_gl: self.catalog.config.renderer == crate::catalog::RendererMode::OpenGl,
                 gpu_batching: self.catalog.config.renderer == crate::catalog::RendererMode::Vulkan,
+                offline_skin,
+                offline_cape,
             };
             crate::document_store::set_game_active(true);
             let game = match crate::game_launch::start(request) {

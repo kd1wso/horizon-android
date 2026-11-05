@@ -146,6 +146,10 @@ pub extern "system" fn document_result(
         crate::world_transfer::result(env, activity, request, result, uri);
         return;
     }
+    if request == crate::skin_picker::SKIN_REQUEST || request == crate::skin_picker::CAPE_REQUEST {
+        crate::skin_picker::result(env, activity, request, result, uri);
+        return;
+    }
     if request != 4101 {
         return;
     }

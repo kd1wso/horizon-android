@@ -78,6 +78,8 @@ pub struct Config {
     pub device: crate::device_preferences::Settings,
     pub shader_source: crate::shader_catalog::Origin,
     pub mod_source: crate::shader_catalog::Origin,
+    /// The arms of the offline skin (`skin_picker`): classic or slim.
+    pub skin_model: crate::skins::Model,
 }
 
 pub use horizon_client::android_gamepad::InputMode as InputHost;
@@ -173,16 +175,18 @@ pub enum Page {
     Shaders,
     Installed,
     Worlds,
+    Skins,
     Settings,
 }
 impl Page {
-    pub const ALL: [Self; 7] = [
+    pub const ALL: [Self; 8] = [
         Self::Play,
         Self::Mods,
         Self::Packs,
         Self::Shaders,
         Self::Installed,
         Self::Worlds,
+        Self::Skins,
         Self::Settings,
     ];
     pub fn name(self) -> &'static str {
@@ -193,6 +197,7 @@ impl Page {
             Self::Shaders => "Shaders",
             Self::Installed => "Installed",
             Self::Worlds => "Worlds",
+            Self::Skins => "Skins",
             Self::Settings => "Settings",
         }
     }
