@@ -1,4 +1,6 @@
 /.local/
+# Android native mods' data, while tools/android_native_mods.py has them applied.
+/native-data/
 /target/
 **/__pycache__/
 *.py[cod]

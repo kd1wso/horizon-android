@@ -110,6 +110,7 @@ def main():
     parser.add_argument('--gradle', type=Path, help='Gradle 8.14 executable (otherwise discover the cached distribution)')
     parser.add_argument('--check', action='store_true', help='Only type-check the Android target')
     parser.add_argument('--clippy', action='store_true', help='Run Android Clippy with warnings denied')
+    parser.add_argument('--no-native-mods', action='store_true', help='Leave out mods/android-native (docs/android-native-mods.md)')
     parser.add_argument('--bootstrap', type=Path, help=argparse.SUPPRESS)  # Old scripts: no longer used.
     args = parser.parse_args()
     if args.dev_build is not None:
@@ -127,6 +128,16 @@ def main():
             parser.error('--public cannot reuse a native library from a different build mode')
     if args.release_candidate and args.profile == 'dev':
         parser.error('--release-candidate requires an optimized release or fast profile')
+    # Native mods are written into the source for Cargo and taken out after it; a build that
+    # was killed in between left them in, so they go first (and before the dirty flag below).
+    import sys
+    sys.path.insert(0, str(ROOT / 'tools'))
+    import android_native_mods
+    try:
+        android_native_mods.clean(ROOT)
+        native_mods = None if args.skip_rust or args.no_native_mods else android_native_mods.load(ROOT)
+    except android_native_mods.ModError as e:
+        parser.exit(1, ''.join(f'android-native-mods: error: {line}\n' for line in str(e).splitlines()))
     suffix = '.exe' if os.name == 'nt' else ''
     for name, value in [('ndk-version', args.ndk_version), ('build-tools-version', args.build_tools_version)]:
         if value is not None and not re.fullmatch(r'\d+(?:\.\d+)+', value):
@@ -173,16 +184,17 @@ def main():
             for prefix in dict.fromkeys([str(original), original.as_posix()]):
                 flags.append(f'--remap-path-prefix={prefix}={replacement}')
         environment['CARGO_ENCODED_RUSTFLAGS'] = '\x1f'.join(flags)
-    if args.check or args.clippy:
-        for selection, host_features in manifests:
-            command = ['cargo', 'clippy' if args.clippy else 'check', *selection, '--target', target, *host_features]
-            if args.clippy:
-                command += ['--no-deps', '--', '-D', 'warnings']
-            run(command, cwd=ROOT, env=environment)
-        return
-    if not args.skip_rust:
-        for selection, host_features in manifests:
-            run(['cargo', 'build', *selection, '--target', target, '--profile', args.profile, *host_features], cwd=ROOT, env=environment)
+    with android_native_mods.applied(native_mods):
+        if args.check or args.clippy:
+            for selection, host_features in manifests:
+                command = ['cargo', 'clippy' if args.clippy else 'check', *selection, '--target', target, *host_features]
+                if args.clippy:
+                    command += ['--no-deps', '--', '-D', 'warnings']
+                run(command, cwd=ROOT, env=environment)
+            return
+        if not args.skip_rust:
+            for selection, host_features in manifests:
+                run(['cargo', 'build', *selection, '--target', target, '--profile', args.profile, *host_features], cwd=ROOT, env=environment)
     if args.rust_only:
         return
     output = ROOT / '.local/android/apk' / args.abi

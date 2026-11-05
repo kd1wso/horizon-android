@@ -221,6 +221,12 @@ are not source-controlled. Chat/F3/F5 use regions of `gui.png`; other states use
 `ui/` and `controls/`. A resource pack can override them under
 `assets/minecraft/textures/gui/bedrock/<relative path>`.
 
+### Native mods
+
+Native mods (horizon-mixins bundles, `.hnmod`) are built into the APK from
+`mods/android-native/`; `--no-native-mods` leaves them out. See
+[Android native mods](android-native-mods.md).
+
 ## Check
 
 ```sh
