@@ -166,7 +166,7 @@ git push                                          # CI соберёт APK вме
 
 Lux сделал [TechDevOnGithub](https://github.com/TechDevOnGithub) на основе BSL Shaders от Capt Tatsu
 ([bitslablab.com](https://bitslablab.com)), а для Horizon его перенёс и исправил [@GBanan](https://github.com/GBanan).
-Спасибо, [@GBanan](https://github.com/GBanan), за порт и разрешение переносить его дальше!
+В APK шейдеры встроены с согласия [@GBanan](https://github.com/GBanan) — спасибо за порт и разрешение!
 
 ## 🛠️ Сборка
 
@@ -213,7 +213,8 @@ Lux сделал [TechDevOnGithub](https://github.com/TechDevOnGithub) на ос
 
 Шейдерпак Lux в `shaders/android-native/` под MIT не подпадает: он распространяется по GPL-2.0
 ([LICENSE](shaders/android-native/Lux_v1.2_Horizon_Android/LICENSE)) и на условиях BSL Shaders
-([AGREEMENT.txt](shaders/android-native/Lux_v1.2_Horizon_Android/AGREEMENT.txt)).
+([AGREEMENT.txt](shaders/android-native/Lux_v1.2_Horizon_Android/AGREEMENT.txt)). В APK он встроен
+с согласия [@GBanan](https://github.com/GBanan).
 
 Ресурсы Minecraft (текстуры, звуки) в репозиторий не входят и не подпадают под MIT: лаунчер
 скачивает их на устройстве с официальных серверов Mojang. Minecraft и его ресурсы принадлежат Mojang и Microsoft.

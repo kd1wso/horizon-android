@@ -94,4 +94,4 @@ These are a fixed compiled set, not support for loading arbitrary native mods.
 defaults changed for phones (its `ANDROID.txt`). It is not under this repository's MIT licence: it is
 distributed under the GNU General Public License 2.0 (`LICENSE` in that folder) and BSL's terms
 (`AGREEMENT.txt`). The APK carries it, with those files, as
-`assets/shaderpacks/Lux_v1.2_Horizon_Android.zip`.
+`assets/shaderpacks/Lux_v1.2_Horizon_Android.zip`. It is built into the APK with GBanan's consent.
