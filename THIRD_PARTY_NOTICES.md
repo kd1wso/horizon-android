@@ -101,3 +101,10 @@ defaults changed for phones (its `ANDROID.txt`). It is not under this repository
 distributed under the GNU General Public License 2.0 (`LICENSE` in that folder) and BSL's terms
 (`AGREEMENT.txt`). The APK carries it, with those files, as
 `assets/shaderpacks/Lux_v1.2_Horizon_Android.zip`. It is built into the APK with GBanan's consent.
+
+## Kenui's Default resource pack
+
+The APK's `assets/resourcepacks/Kenuis-Default-Horizon-26.3.zip` is adapted from
+[Kenui's Default v6.6](https://modrinth.com/resourcepack/kenuis-default) by KenuiZ
+(Kenui_Z), MIT. Original v6.6 archive SHA-1 `13e5ea4655fbea02fe6825f89342afbe010a6520`
+matches Modrinth. The license and adaptation notes are inside the ZIP.

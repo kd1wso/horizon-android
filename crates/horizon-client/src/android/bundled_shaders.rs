@@ -60,12 +60,23 @@ fn read_record(path: &Path) -> Vec<(String, String)> {
 /// Puts the packs that are new to `game` (a profile's folder) into its `shaderpacks/`;
 /// returns the names written.
 pub fn install(game: &Path, packs: &[Pack]) -> io::Result<Vec<String>> {
+    install_to(game, packs, "shaderpacks", RECORD, "android-bundled-shader")
+}
+
+/// Shared installation logic for APK shader and resource packs.
+pub fn install_to(
+    game: &Path,
+    packs: &[Pack],
+    directory: &str,
+    record_name: &str,
+    partial_name: &str,
+) -> io::Result<Vec<String>> {
     if packs.is_empty() {
         return Ok(Vec::new());
     }
-    let record_path = game.join(RECORD);
+    let record_path = game.join(record_name);
     let mut record = read_record(&record_path);
-    let folder = game.join("shaderpacks");
+    let folder = game.join(directory);
     let (mut written, mut changed) = (Vec::new(), false);
     for pack in packs {
         if !plain(&pack.name) {
@@ -88,7 +99,7 @@ pub fn install(game: &Path, packs: &[Pack]) -> io::Result<Vec<String>> {
         };
         if write {
             fs::create_dir_all(&folder)?;
-            let partial = game.join("android-bundled-shader.partial");
+            let partial = game.join(format!("{partial_name}.partial"));
             fs::write(&partial, &pack.bytes)?;
             fs::rename(&partial, &target)?;
             written.push(pack.name.clone());
@@ -104,7 +115,7 @@ pub fn install(game: &Path, packs: &[Pack]) -> io::Result<Vec<String>> {
             .iter()
             .map(|(name, digest)| format!("{name}\t{digest}\n"))
             .collect();
-        let partial = game.join("android-bundled-shaders.partial");
+        let partial = game.join(format!("{record_name}.partial"));
         fs::write(&partial, text)?;
         fs::rename(&partial, &record_path)?;
     }

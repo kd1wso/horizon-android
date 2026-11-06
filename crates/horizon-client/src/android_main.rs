@@ -21,6 +21,8 @@ mod account;
 mod browser;
 #[path = "android/dns.rs"]
 mod android_dns;
+#[path = "android/bundled_resources.rs"]
+mod bundled_resources;
 #[path = "android/bundled_shaders.rs"]
 mod bundled_shaders;
 #[path = "android/catalog.rs"]
@@ -41,8 +43,6 @@ mod document_provider;
 mod document_store;
 #[path = "android/documents.rs"]
 mod documents;
-#[path = "android/world_transfer.rs"]
-mod world_transfer;
 #[path = "android/exit_reports.rs"]
 mod exit_reports;
 #[path = "android/gallery.rs"]
@@ -53,6 +53,8 @@ mod native_ime;
 mod performance;
 #[path = "android/platform.rs"]
 mod platform;
+#[path = "android/world_transfer.rs"]
+mod world_transfer;
 #[rustfmt::skip]
 #[allow(dead_code)]
 #[path = "../../../launcher/src/proxy.rs"]
@@ -92,27 +94,29 @@ mod backend {
 }
 
 use std::cell::RefCell;
-/// The shader packs in the APK's `assets/shaderpacks/` (`shaders/android-native/`, written by
-/// tools/android_shader_packs.py).
-fn apk_shader_packs(
+/// Read built-in packs from an APK asset directory.
+fn apk_packs(
     assets: &winit::platform::android::activity::ndk::asset::AssetManager,
+    directory: &str,
+    kind: horizon_client::content_files::Kind,
 ) -> Vec<bundled_shaders::Pack> {
     use std::io::Read;
-    let Some(folder) = assets.open_dir(c"shaderpacks") else {
+    let Ok(dir) = std::ffi::CString::new(directory) else {
+        return Vec::new();
+    };
+    let Some(folder) = assets.open_dir(&dir) else {
         return Vec::new();
     };
     folder
         .filter_map(|file| {
             let name = file.to_str().ok()?.to_owned();
-            if !horizon_client::content_files::Kind::Shaders.accepts(&name)
-                || !horizon_client::content_files::plain_name(&name)
-            {
+            if !kind.accepts(&name) || !horizon_client::content_files::plain_name(&name) {
                 return None;
             }
-            let path = std::ffi::CString::new(format!("shaderpacks/{name}")).ok()?;
+            let path = std::ffi::CString::new(format!("{directory}/{name}")).ok()?;
             let mut bytes = Vec::new();
             if let Err(error) = assets.open(&path)?.read_to_end(&mut bytes) {
-                log::error!("Cannot read the built-in shader pack {name}: {error}");
+                log::error!("Cannot read the built-in pack {name}: {error}");
                 return None;
             }
             Some(bundled_shaders::Pack { name, bytes })
@@ -253,7 +257,16 @@ fn android_main(app: AndroidApp) {
         secure_store::initialize(vm);
     }
     let engine_data = app.asset_manager().open(c"engine-data.zip");
-    bundled_shaders::remember(apk_shader_packs(&app.asset_manager()));
+    bundled_shaders::remember(apk_packs(
+        &app.asset_manager(),
+        "shaderpacks",
+        horizon_client::content_files::Kind::Shaders,
+    ));
+    bundled_resources::remember(apk_packs(
+        &app.asset_manager(),
+        "resourcepacks",
+        horizon_client::content_files::Kind::Packs,
+    ));
     APP.with(|slot| *slot.borrow_mut() = Some(app));
     let Some(cache) = platform::cache_dir() else {
         log::error!("Android supplied no application cache directory");

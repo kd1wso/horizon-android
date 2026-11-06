@@ -144,6 +144,10 @@ def main():
     shader_problems = android_shader_packs.packs()[1]
     if shader_problems:
         parser.exit(1, ''.join(f'android-shader-packs: error: {line}\n' for line in shader_problems))
+    import android_resource_packs
+    resource_problems = android_resource_packs.packs()[1]
+    if resource_problems:
+        parser.exit(1, ''.join(f'android-resource-packs: error: {line}\n' for line in resource_problems))
     suffix = '.exe' if os.name == 'nt' else ''
     for name, value in [('ndk-version', args.ndk_version), ('build-tools-version', args.build_tools_version)]:
         if value is not None and not re.fullmatch(r'\d+(?:\.\d+)+', value):
@@ -225,6 +229,8 @@ def main():
     shutil.copyfile(engine_data(args.public), assets / 'engine-data.zip')
     for pack in android_shader_packs.write(assets / 'shaderpacks'):
         print(f'Built-in shader pack: {pack.name} ({pack.stat().st_size} bytes)')
+    for pack in android_resource_packs.write(assets / 'resourcepacks'):
+        print(f'Built-in resource pack: {pack.name} ({pack.stat().st_size} bytes)')
     controls = ROOT / '.local/android/bedrock-controls.zip'
     if not args.public and not controls.is_file():
         import sys

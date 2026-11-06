@@ -291,6 +291,17 @@ impl Catalog {
                 game.display()
             ),
         }
+        match crate::bundled_resources::install_remembered(&game) {
+            Ok(names) => {
+                for name in names {
+                    log::info!("Built-in resource pack {name} put in {}", game.display());
+                }
+            }
+            Err(error) => log::warn!(
+                "Cannot install built-in resource packs in {}: {error}",
+                game.display()
+            ),
+        }
         let installed = Installed::load(&game);
         self.downloaded = installed
             .entries
@@ -332,8 +343,10 @@ impl Catalog {
                         .strip_suffix(".hmod")
                         .is_some_and(|id| on.enabled.contains(id)),
                 };
-                let title = if kind == horizon_client::content_files::Kind::Shaders
-                    && crate::bundled_shaders::is_bundled(&name)
+                let title = if (kind == horizon_client::content_files::Kind::Shaders
+                    && crate::bundled_shaders::is_bundled(&name))
+                    || (kind == horizon_client::content_files::Kind::Packs
+                        && crate::bundled_resources::is_bundled(&name))
                 {
                     format!("{name} (built in)")
                 } else {

@@ -97,4 +97,6 @@ shaders, the missing pieces are missing vanilla features too, and each vanilla p
 
 `tools/test_resource_pack_parity.py` builds small packs (folder and zip, overlays, a filter, textures, languages,
 sounds, fonts, atlases), and a Java oracle answers what vanilla's loaders read from them; Horizon's loaders must
-give the same answers. Never commit third-party packs: build test packs in the harness or the test.
+give the same answers. Build test packs in the harness or the test rather than committing downloaded
+third-party packs for testing. The licensed Android bundle is documented in
+[android-content.md](android-content.md#built-in-resource-packs).

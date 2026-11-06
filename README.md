@@ -146,6 +146,13 @@ git push                                          # CI соберёт APK вме
 - **Вкл/выкл** — включён по умолчанию; выключается на вкладке **Mods** лаунчера или в **Options → Mods**.
 - **Настройки** — **Options → Mods → VeinMiner**, команда `/veinminer` в чате.
 
+## 🎨 Ресурс-пак Kenui’s Default
+
+В APK встроен **Kenui’s Default v6.6** от [KenuiZ](https://modrinth.com/resourcepack/kenuis-default),
+адаптированный для Horizon 26.3. Лаунчер добавит ZIP в профиль; включи его на вкладке
+**Installed → Resource Packs** или в игре (**Options → Resource Packs**). Эффекты OptiFine и
+ETF могут не работать. Лицензия MIT и описание изменений находятся внутри ZIP.
+
 ## 🌅 Шейдеры Lux
 
 В APK встроен шейдерпак **Lux v1.2** в сборке для Horizon от [**@GBanan**](https://github.com/GBanan):

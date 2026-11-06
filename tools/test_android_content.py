@@ -2,6 +2,8 @@
 """Run archive safety, built-in shader pack and terrain upload scheduling tests without a game."""
 from pathlib import Path
 import subprocess
+import os
+import sys
 import tomllib
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -39,12 +41,17 @@ mod osk { pub enum Output { Text(String), Backspace, Enter, Close } }
 #[path = "../../../../crates/horizon-client/src/android/search_queue.rs"] mod search_queue;
 #[path = "../../../../crates/horizon-client/src/android/document_store.rs"] mod document_store;
 #[path = "../../../../crates/horizon-client/src/android/bundled_shaders.rs"] mod bundled_shaders;
+#[path = "../../../../crates/horizon-client/src/android/bundled_resources.rs"] mod bundled_resources;
 #[path = "../../../../crates/horizon-client-render/src/graphics_startup.rs"] mod graphics_startup;
 #[path = "../../../../crates/horizon-client/src/android_resources.rs"] mod android_resources;
 #[path = "../../../../crates/horizon-client/src/ui_text.rs"] mod ui_text;
 ''', encoding='utf-8')
+    sys.path.insert(0, str(ROOT / 'tools'))
+    import android_resource_packs
+    [pack] = android_resource_packs.write(root / 'resourcepacks')
+    env = dict(os.environ, HORIZON_ANDROID_TEST_RESOURCE_PACK=str(pack))
     subprocess.run(['cargo', 'test', '--manifest-path', str(root / 'Cargo.toml')],
-                   cwd=ROOT, check=True)
+                   cwd=ROOT, check=True, env=env)
 
 
 if __name__ == '__main__':

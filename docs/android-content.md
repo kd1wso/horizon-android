@@ -123,3 +123,15 @@ The first is Lux v1.2, GBanan's build of Lux for Horizon
 with defaults for phones: 1024 shadows to 128 blocks with the simple filter, FXAA, and no AO,
 light shafts, rough reflections or water parallax; its Medium, High and Ultra profiles bring
 back the original's. What changed is in its `ANDROID.txt`.
+
+## Built-in resource packs
+
+The build downloads the pinned Kenui's Default v6.6 from Modrinth, verifies its size and
+SHA-512, adapts it, and puts the ZIP into the APK's `assets/resourcepacks/`. The original
+is cached in `.local/android/` for offline rebuilds. The launcher puts it into each profile
+and lists it in Installed; select it there
+or in the game. A deleted pack stays deleted until an APK carries a new version, and
+an existing or edited file is never overwritten. `android-bundled-resources.txt` records
+installed versions. Run `python3 tools/android_resource_packs.py check` to validate ZIPs.
+Kenui's Default v6.6 is by KenuiZ, MIT; its licence and adaptation notes are inside the ZIP.
+OptiFine/ETF features are not guaranteed to work in Horizon.
