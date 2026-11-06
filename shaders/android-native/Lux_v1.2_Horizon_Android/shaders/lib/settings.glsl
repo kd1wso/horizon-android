@@ -17,6 +17,7 @@ See AGREEMENT.txt for more information.
 #define DESATURATION
 #define DESATURATION_FACTOR 1.0                                 // [2.0 1.5 1.0 0.5 0.0]
 #define REFLECTION
+#define OVERWORLD_REFLECTION_STEPS 20                           // [12 20 30]
 #define REFLECTION_TRANSLUCENT
 // #define FORCE_REFLECTION
 // #define MATERIAL_SUPPORT
@@ -240,6 +241,7 @@ const float shadowMapBias = 1.0 - 25.6 / shadowDistance;
 #define SKY_DESATURATION
 #define SKYBOX_BRIGHTNESS 2.00                                  // [0.25 0.50 0.75 1.00 1.25 1.50 1.75 2.00 2.25 2.50 2.75 3.00 3.25 3.50 3.75 4.00]
 
+#define CLOUD_NOISE_OCTAVES 4                                   // [4 6]
 #define CLOUD_THICKNESS 4                                       // [1 2 4 8 16]
 #define CLOUD_AMOUNT 11.0                                       // [13.0 12.0 11.0 10.0 9.0]
 #define CLOUD_HEIGHT 15.0                                       // [5.0 10.0 15.0 20.0 25.0]

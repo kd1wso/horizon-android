@@ -14,14 +14,19 @@ float CloudNoise(vec2 coord, vec2 wind)
 	float amplitude = 1.0;
 	float frequency = 0.45;
 
-	for (int i = 0; i < 6; i++)
+	for (int i = 0; i < CLOUD_NOISE_OCTAVES; i++)
 	{
 		retValue += texture2D(noisetex, (coord + wind * 0.4 * Lift(frequency, 4.34)) * frequency).r * amplitude;
 		frequency *= cloudLacunarity;
 		amplitude *= cloudPersistance;
 	}
 
+	// Keep the average coverage close to the original six-octave noise.
+	#if CLOUD_NOISE_OCTAVES == 4
+	return retValue * (9.0 * 1.16114);
+	#else
 	return retValue * 9.0;
+	#endif
 }
 
 float CloudCoverage(float noise, float cosT, float coverage)

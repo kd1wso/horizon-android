@@ -104,6 +104,9 @@ value.DESATURATION_FACTOR.1.0=Medium
 value.DESATURATION_FACTOR.0.5=High
 value.DESATURATION_FACTOR.0.0=Very High
 
+option.OVERWORLD_REFLECTION_STEPS=Overworld Reflection Steps
+option.OVERWORLD_REFLECTION_STEPS.comment=Fewer steps improve performance but can miss distant screen-space reflections in the Overworld.
+
 option.REFLECTION=Reflections
 option.REFLECTION.comment=Enables screen space reflection. §e[*]§r This toggle only affects water and translucent reflection, rain and specular reflection won't be affected.
 
@@ -389,6 +392,9 @@ option.WATER_MODE.comment=Determine whether vanilla water texture should be used
 value.WATER_MODE.0=Default
 value.WATER_MODE.1=Vanilla
 value.WATER_MODE.2=Tinted Vanilla
+
+option.CLOUD_NOISE_OCTAVES=Cloud Noise Detail
+option.CLOUD_NOISE_OCTAVES.comment=Fewer noise layers reduce the cost of Overworld clouds and their reflections.
 
 option.CLOUDS=Clouds
 option.CLOUDS.comment=Enables clouds. §a[+]§r This effect benefits from TAA.
