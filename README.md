@@ -159,6 +159,10 @@ git push                                          # CI соберёт APK вме
 **Shader Options… → Profile → Medium** или **High**: это настройки оригинала. Все изменения —
 в [ANDROID.txt](shaders/android-native/Lux_v1.2_Horizon_Android/ANDROID.txt).
 
+Также в APK входит **Svet Lite** — лёгкий шейдерпак для бюджетных устройств.
+Он улучшает цвета изображения без тяжёлых динамических теней и отражений.
+В меню шейдера доступны профили и настройки яркости, контраста и насыщенности.
+
 > [!WARNING]
 > **Телефоны с Adreno (Snapdragon).** Vulkan-драйвер Qualcomm собирает не все шейдеры Lux: на
 > Adreno 740 (Snapdragon 8 Gen 2, например Xiaomi 13, драйвер от 28.11.2025) он отказывается
