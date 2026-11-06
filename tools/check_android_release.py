@@ -20,6 +20,8 @@ LICENSE_ASSETS = {'assets/LICENSE.txt', 'assets/THIRD_PARTY_NOTICES.md'}
 # Built-in shader packs (tools/android_shader_packs.py): third-party shader code, one ZIP each,
 # scanned like the rest of the payload.
 SHADER_PACK = re.compile(r'assets/shaderpacks/[^/]+\.zip')
+# One explicitly reviewed resource pack; its contents are scanned recursively.
+RESOURCE_PACK = 'assets/resourcepacks/Kenuis-Default-Horizon-26.3.zip'
 PRIVATE_PARTS = {'accounts', 'accounts.json', 'session.json', 'session-file.json',
                  'control.json', 'servers.dat', 'level.dat', 'options.txt',
                  'android-launch.json', 'android-launcher.json', 'saves', 'profiles',
@@ -38,6 +40,7 @@ PATTERNS = {
 def inspect_payload(path, public=False):
     findings = []
     shader_packs = []
+    resource_packs = []
     totals = {'entries': 0, 'uncompressed_bytes': 0}
 
     def walk(archive, prefix='', depth=0):
@@ -65,6 +68,8 @@ def inspect_payload(path, public=False):
             if depth == 0 and name.startswith('assets/') and name not in ASSETS | BUILD_ASSETS | LICENSE_ASSETS:
                 if SHADER_PACK.fullmatch(name):
                     shader_packs.append(name)
+                elif name == RESOURCE_PACK:
+                    resource_packs.append(name)
                 else:
                     findings.append({'path': full, 'kind': 'unexpected_asset'})
             data = archive.read(entry)
@@ -87,7 +92,8 @@ def inspect_payload(path, public=False):
         if public and 'assets/bedrock-controls.zip' in archive.namelist():
             raise ValueError('Public APK must download original control textures, not bundle them')
         walk(archive)
-    return {**totals, 'shader_packs': sorted(shader_packs), 'findings': findings}
+    return {**totals, 'shader_packs': sorted(shader_packs),
+            'resource_packs': sorted(resource_packs), 'findings': findings}
 
 
 def audit(path, aapt2, public=False, app_id='dev.horizon.android'):
@@ -104,6 +110,7 @@ def audit(path, aapt2, public=False, app_id='dev.horizon.android'):
     report['payload_mode'] = 'generated-tables-and-official-downloads' if public else 'private-development'
     report['bundled_game_resources'] = ['assets/engine-data.zip (generated tables)'] if public else sorted(ASSETS)
     report['bundled_shader_packs'] = report.pop('shader_packs', [])
+    report['bundled_resource_packs'] = report.pop('resource_packs', [])
     report['distribution_clearance'] = 'Technical payload audit; no legal certification.'
     report['scope'] = 'Archive paths, packaged assets, known credential patterns, personal compiler paths and manifest debuggability; no exhaustive secret-format guarantee.'
     return report

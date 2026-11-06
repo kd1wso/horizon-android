@@ -91,6 +91,16 @@ class ReleaseAuditTests(unittest.TestCase):
         self.assertTrue(report['passed'])
         self.assertEqual(report['bundled_shader_packs'], ['assets/shaderpacks/Lux.zip'])
 
+    def test_built_in_resource_pack_is_allowed_and_scanned(self):
+        name = 'assets/resourcepacks/Kenuis-Default-Horizon-26.3.zip'
+        report = self.inspect(extra={name: archive({'pack.mcmeta': b'{"pack":{}}'})})
+        self.assertEqual(report['findings'], [])
+        self.assertEqual(report['resource_packs'], [name])
+        report = self.inspect(extra={name: archive({'leak.txt': b'ghp_' + b'X' * 36})})
+        self.assertEqual({f['kind'] for f in report['findings']}, {'github_token'})
+        report = self.inspect(extra={'assets/resourcepacks/other.zip': archive({'x': b''})})
+        self.assertEqual({f['kind'] for f in report['findings']}, {'unexpected_asset'})
+
     def test_nested_player_data_and_unexpected_asset_are_rejected(self):
         report = self.inspect({'profiles/account.json': b'{}'}, {'assets/settings.json': b'{}'})
         self.assertEqual({f['kind'] for f in report['findings']}, {'private_file', 'unexpected_asset'})
