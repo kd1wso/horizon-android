@@ -16,4 +16,4 @@ replaced.
 | Pack | From | Licence |
 |---|---|---|
 | [Lux_v1.2_Horizon_Android](Lux_v1.2_Horizon_Android/ANDROID.txt) | [GBanan/Lux-1.2-Shaders-For-Horizon](https://github.com/GBanan/Lux-1.2-Shaders-For-Horizon), with defaults for phones | GPL-2.0 (`LICENSE`) and BSL's terms (`AGREEMENT.txt`) |
-| [Lux_Lite_Xiaomi13.zip](Lux_Lite_Xiaomi13.zip) | Lux v1.2 for Horizon, experimental mobile performance variant; see `ANDROID.txt` inside the ZIP | GPL-2.0 (`LICENSE`) and BSL terms (`AGREEMENT.txt`) |
+| [Lux_Lite_Xiaomi13.zip](Lux_Lite.zip) | Lux v1.2 for Horizon, experimental mobile performance variant; see `ANDROID.txt` inside the ZIP | GPL-2.0 (`LICENSE`) and BSL terms (`AGREEMENT.txt`) |
