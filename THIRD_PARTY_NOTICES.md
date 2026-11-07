@@ -108,3 +108,31 @@ The APK's `assets/resourcepacks/Kenuis-Default-Horizon-26.3.zip` is adapted from
 [Kenui's Default v6.6](https://modrinth.com/resourcepack/kenuis-default) by KenuiZ
 (Kenui_Z), MIT. Original v6.6 archive SHA-1 `13e5ea4655fbea02fe6825f89342afbe010a6520`
 matches Modrinth. The license and adaptation notes are inside the ZIP.
+
+## Just Enough Items search tokenizer
+
+The supplied JEI for Horizon bundle in `mods/android-native/jei` includes a search
+tokenizer and tests based on [Just Enough Items](https://github.com/mezz/JustEnoughItems)
+by mezz. Its MIT notice follows:
+
+The MIT License (MIT)
+
+Copyright (c) 2014-2015 mezz
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
